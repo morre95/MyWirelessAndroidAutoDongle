@@ -3,6 +3,7 @@ interface=wlan0
 
 hw_mode=g
 ieee80211n=1
+wmm_enabled=1
 channel=6
 
 auth_algs=1

@@ -6,6 +6,8 @@
 
 class AAWProxy {
 public:
+    ~AAWProxy();
+
     std::optional<std::thread> startServer(int32_t port);
 
 private:
@@ -18,8 +20,10 @@ private:
     void forward(ProxyDirection direction, std::atomic<bool>& should_exit);
     void stopForwarding(std::atomic<bool>& should_exit);
 
-    ssize_t readFully(int fd, unsigned char *buf, size_t nbyte);
-    ssize_t readMessage(int fd, unsigned char *buf, size_t nbyte);
+    ssize_t readFully(int fd, unsigned char *buf, size_t nbyte, std::atomic<bool>& should_exit);
+    ssize_t writeFully(int fd, const unsigned char *buf, size_t nbyte, std::atomic<bool>& should_exit);
+    ssize_t readMessage(int fd, unsigned char *buf, size_t nbyte, std::atomic<bool>& should_exit);
+    void closeDescriptors();
 
     int m_usb_fd = -1;
     int m_tcp_fd = -1;

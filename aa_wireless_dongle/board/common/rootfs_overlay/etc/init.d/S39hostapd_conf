@@ -25,6 +25,17 @@ case "$1" in
 		if [ -n "${AAWG_COUNTRY_CODE}" ]; then
 			echo "country_code=${AAWG_COUNTRY_CODE}" >> /var/run/hostapd.conf
 		fi
+
+		# Override the board's default Wifi channel when requested.
+		if [ -n "${AAWG_WIFI_CHANNEL}" ]; then
+			case "${AAWG_WIFI_CHANNEL}" in
+				*[!0-9]*)
+					echo "Invalid AAWG_WIFI_CHANNEL: ${AAWG_WIFI_CHANNEL}"
+					exit 1
+					;;
+			esac
+			sed -i "s/^channel=.*/channel=${AAWG_WIFI_CHANNEL}/" /var/run/hostapd.conf
+		fi
 		;;
 	*)
 		echo "Usage: $0 {start}"

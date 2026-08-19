@@ -1,6 +1,10 @@
 #pragma once
 
+#include <future>
+#include <memory>
+#include <mutex>
 #include <optional>
+#include <string>
 #include <thread>
 
 #include "bluetoothCommon.h"
@@ -37,9 +41,11 @@ private:
     void startAdvertising();
     void stopAdvertising();
 
-    void retryConnectLoop();
+    void retryConnectLoop(std::shared_ptr<std::promise<void>> stopPromise);
 
+    std::mutex connectWithRetryMutex;
     std::shared_ptr<std::promise<void>> connectWithRetryPromise;
+    bool connectWithRetryStopped = false;
 
     std::shared_ptr<DBus::Dispatcher> m_dispatcher;
     std::shared_ptr<DBus::Connection> m_connection;

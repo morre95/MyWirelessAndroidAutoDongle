@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "common.h"
 #include "bluetoothHandler.h"
@@ -8,6 +9,10 @@
 #include "usb.h"
 
 int main(void) {
+    // A disconnected TCP peer is handled as a normal write error. Do not let
+    // SIGPIPE terminate the daemon before the reconnect loop can run.
+    signal(SIGPIPE, SIG_IGN);
+
     Logger::instance()->info("AA Wireless Dongle\n");
 
     // Global init

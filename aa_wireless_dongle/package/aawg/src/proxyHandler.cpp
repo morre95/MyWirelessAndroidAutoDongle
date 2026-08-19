@@ -2,10 +2,12 @@
 #include <unistd.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <string.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/poll.h>
+#include <array>
 #include <thread>
 #include <optional>
 #include <atomic>
@@ -20,13 +22,35 @@ void empty_signal_handler(int signal) {
     // Empty. We don't want to do anything but interrupt the thread.
 }
 
-ssize_t AAWProxy::readFully(int fd, unsigned char *buffer, size_t nbyte) {
+AAWProxy::~AAWProxy() {
+    closeDescriptors();
+}
+
+void AAWProxy::closeDescriptors() {
+    if (m_usb_fd >= 0) {
+        close(m_usb_fd);
+        m_usb_fd = -1;
+    }
+
+    if (m_tcp_fd >= 0) {
+        close(m_tcp_fd);
+        m_tcp_fd = -1;
+    }
+}
+
+ssize_t AAWProxy::readFully(int fd, unsigned char *buffer, size_t nbyte, std::atomic<bool>& should_exit) {
     size_t remaining_bytes = nbyte;
     while (remaining_bytes > 0) {
         ssize_t len = read(fd, buffer, remaining_bytes);
 
+        if (len < 0 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)) {
+            if (should_exit) {
+                return -1;
+            }
+            continue;
+        }
+
         if (len <= 0) {
-            // Error, cannot read more.
             return len;
         }
 
@@ -37,9 +61,37 @@ ssize_t AAWProxy::readFully(int fd, unsigned char *buffer, size_t nbyte) {
     return nbyte;
 }
 
-ssize_t AAWProxy::readMessage(int fd, unsigned char *buffer, size_t buffer_len) {
+ssize_t AAWProxy::writeFully(int fd, const unsigned char *buffer, size_t nbyte, std::atomic<bool>& should_exit) {
+    size_t remaining_bytes = nbyte;
+    while (remaining_bytes > 0) {
+        ssize_t len = write(fd, buffer, remaining_bytes);
+
+        if (len < 0 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)) {
+            if (should_exit) {
+                return -1;
+            }
+            continue;
+        }
+
+        if (len < 0) {
+            return -1;
+        }
+
+        if (len == 0) {
+            errno = EIO;
+            return -1;
+        }
+
+        buffer += len;
+        remaining_bytes -= len;
+    }
+
+    return nbyte;
+}
+
+ssize_t AAWProxy::readMessage(int fd, unsigned char *buffer, size_t buffer_len, std::atomic<bool>& should_exit) {
     size_t header_length = 4;
-    if (ssize_t len = readFully(fd, buffer, header_length); len <= 0) {
+    if (ssize_t len = readFully(fd, buffer, header_length, should_exit); len <= 0) {
         return len;
     }
 
@@ -58,7 +110,7 @@ ssize_t AAWProxy::readMessage(int fd, unsigned char *buffer, size_t buffer_len) 
         return -1;
     }
 
-    if (ssize_t len = readFully(fd, buffer + header_length, message_length); len <= 0) {
+    if (ssize_t len = readFully(fd, buffer + header_length, message_length, should_exit); len <= 0) {
         return len;
     }
 
@@ -66,8 +118,7 @@ ssize_t AAWProxy::readMessage(int fd, unsigned char *buffer, size_t buffer_len) 
 }
 
 void AAWProxy::forward(ProxyDirection direction, std::atomic<bool>& should_exit) {
-    size_t buffer_len = 16384;
-    unsigned char buffer[buffer_len];
+    std::array<unsigned char, 16384> buffer;
 
     bool read_message;
     int read_fd, write_fd;
@@ -95,14 +146,21 @@ void AAWProxy::forward(ProxyDirection direction, std::atomic<bool>& should_exit)
 
     while (!should_exit) {
         // Read
-        ssize_t len = read_message ? readMessage(read_fd, buffer, buffer_len) : read(read_fd, buffer, buffer_len);
+        ssize_t len;
+        if (read_message) {
+            len = readMessage(read_fd, buffer.data(), buffer.size(), should_exit);
+        } else {
+            do {
+                len = read(read_fd, buffer.data(), buffer.size());
+            } while (len < 0 && errno == EINTR && !should_exit);
+        }
 
         if (len <= 0) {
             // Start logging read/write details if there is an error.
             m_log_communication = true;
         }
         if (m_log_communication) {
-            Logger::instance()->info("%d bytes read from %s\n", len, read_name.c_str());
+            Logger::instance()->info("%zd bytes read from %s\n", len, read_name.c_str());
         }
 
         if (len < 0) {
@@ -117,14 +175,14 @@ void AAWProxy::forward(ProxyDirection direction, std::atomic<bool>& should_exit)
         }
 
         // Write
-        ssize_t wlen = write(write_fd, buffer, len);
+        ssize_t wlen = writeFully(write_fd, buffer.data(), len, should_exit);
 
         if (wlen <= 0) {
             // Start logging read/write details if there is an error.
             m_log_communication = true;
         }
         if (m_log_communication) {
-            Logger::instance()->info("%d bytes written to %s\n", wlen, write_name.c_str());
+            Logger::instance()->info("%zd bytes written to %s\n", wlen, write_name.c_str());
         }
 
         if (wlen < 0) {
@@ -213,11 +271,7 @@ void AAWProxy::handleClient(int server_sock) {
 
     signal(SIGUSR1, SIG_DFL);
 
-    close(m_usb_fd);
-    m_usb_fd = -1;
-
-    close(m_tcp_fd);
-    m_tcp_fd = -1;
+    closeDescriptors();
 
     Logger::instance()->info("Forwarding stopped\n");
 }
@@ -231,23 +285,26 @@ std::optional<std::thread> AAWProxy::startServer(int32_t port) {
     }
 
     int opt = 1;
-    if (setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+    if (setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
         Logger::instance()->info("setsockopt failed: %s\n", strerror(errno));
+        close(server_sock);
         return std::nullopt;
     }
 
-    struct sockaddr_in address;
+    struct sockaddr_in address = {};
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
 
     if (bind(server_sock, (struct sockaddr*)&address, sizeof(address)) < 0) {
         Logger::instance()->info("bind failed: %s\n", strerror(errno));
+        close(server_sock);
         return std::nullopt;
     }
 
     if (listen(server_sock, 3) < 0) {
         Logger::instance()->info("listen failed: %s\n", strerror(errno));
+        close(server_sock);
         return std::nullopt;
     }
 

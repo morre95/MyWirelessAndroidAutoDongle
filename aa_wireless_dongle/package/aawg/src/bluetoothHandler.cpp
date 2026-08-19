@@ -203,7 +203,7 @@ void BluetoothHandler::connectDevice() {
         std::shared_ptr<DBus::PropertyProxy<bool>> deviceConnected = bluezDevice->create_property<bool>(INTERFACE_BLUEZ_DEVICE, "Connected");
 
         try {
-            if (deviceConnected) {
+            if (deviceConnected && deviceConnected->value()) {
                 Logger::instance()->info("Bluetooth device already connected, disconnecting\n");
                 disconnect();
             }
@@ -224,16 +224,23 @@ void BluetoothHandler::connectDevice() {
     }
 }
 
-void BluetoothHandler::retryConnectLoop() {
+void BluetoothHandler::retryConnectLoop(std::shared_ptr<std::promise<void>> stopPromise) {
     bool should_exit = false;
-    std::future<void> connectWithRetryFuture = connectWithRetryPromise->get_future();
+    std::future<void> connectWithRetryFuture = stopPromise->get_future();
 
     while (!should_exit) {
         connectDevice();
 
         if (connectWithRetryFuture.wait_for(std::chrono::seconds(20)) == std::future_status::ready) {
             should_exit = true;
+        }
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(connectWithRetryMutex);
+        if (connectWithRetryPromise == stopPromise) {
             connectWithRetryPromise = nullptr;
+            connectWithRetryStopped = false;
         }
     }
 
@@ -275,14 +282,27 @@ std::optional<std::thread> BluetoothHandler::connectWithRetry() {
         return std::nullopt;
     }
 
-    connectWithRetryPromise = std::make_shared<std::promise<void>>();
-    return std::thread(&BluetoothHandler::retryConnectLoop, this);
+    std::shared_ptr<std::promise<void>> stopPromise = std::make_shared<std::promise<void>>();
+    {
+        std::lock_guard<std::mutex> lock(connectWithRetryMutex);
+        connectWithRetryPromise = stopPromise;
+        connectWithRetryStopped = false;
+    }
+    return std::thread(&BluetoothHandler::retryConnectLoop, this, stopPromise);
 }
 
 void BluetoothHandler::stopConnectWithRetry() {
-    if (connectWithRetryPromise) {
-        connectWithRetryPromise->set_value();
+    std::shared_ptr<std::promise<void>> stopPromise;
+    {
+        std::lock_guard<std::mutex> lock(connectWithRetryMutex);
+        if (!connectWithRetryPromise || connectWithRetryStopped) {
+            return;
+        }
+        connectWithRetryStopped = true;
+        stopPromise = connectWithRetryPromise;
     }
+
+    stopPromise->set_value();
 }
 
 void BluetoothHandler::powerOff() {
