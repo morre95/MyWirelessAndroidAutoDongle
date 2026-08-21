@@ -16,7 +16,8 @@ This is currently tested and built for the following Raspberry Pi boards support
 - **Raspberry Pi Zero 2 W**
 - **Raspberry Pi 3 A+** _(Raspberry Pi 3 B+ is not supported due to lack of USB OTG support.)_
 - **Raspberry Pi 4**
-
+- **Raspberry Pi 5**
+  
 In theory, this can be extended to more hardware in future with these basic requirements.
 
 - The board should support USB OTG or Gadget mode.
