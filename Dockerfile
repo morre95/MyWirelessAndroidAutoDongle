@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive 
 
@@ -11,6 +11,9 @@ RUN apt-get -q -y install file wget cpio rsync locales \
 RUN apt-get -q -y autoremove && apt-get -q -y clean
 RUN update-locale LC_ALL=C
 
+# 24.04 ships a stock "ubuntu" user on uid 1000; drop it so buildroot gets 1000
+# and keeps write access to the bind-mounted source tree.
+RUN userdel -r ubuntu
 RUN useradd -ms /bin/bash buildroot
 
 RUN mkdir -p /app/buildroot/dl && chown -R buildroot:buildroot /app/buildroot/dl

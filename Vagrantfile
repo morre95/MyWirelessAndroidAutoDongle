@@ -9,7 +9,7 @@ VM_MEMORY=32768
 VM_CORES=14
 
 Vagrant.configure('2') do |config|
-	config.vm.box = 'ubuntu/jammy64'
+	config.vm.box = 'cloud-image/ubuntu-24.04'
 	config.ssh.forward_agent = true
 
 	config.vm.provider :vmware_fusion do |v, override|
@@ -28,8 +28,7 @@ Vagrant.configure('2') do |config|
 	end
 
 	config.vm.provision 'shell', privileged: true, inline:
-		"sed -i 's|deb http://us.archive.ubuntu.com/ubuntu/|deb mirror://mirrors.ubuntu.com/mirrors.txt|g' /etc/apt/sources.list
-		dpkg --add-architecture i386
+		"dpkg --add-architecture i386
 		apt-get -q update
 		apt-get purge -q -y snapd lxcfs lxd ubuntu-core-launcher snap-confine
 		apt-get -q -y install build-essential libncurses5-dev \
