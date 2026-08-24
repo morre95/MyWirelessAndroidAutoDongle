@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [ "main" ]
+    tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
 
@@ -49,3 +50,30 @@ jobs:
       - uses: actions/upload-artifact/merge@v7
         with:
           name: WirelessAndroidAutoDongle-all
+
+  # Attach the images to a GitHub Release when a v* tag is pushed. Release
+  # assets never expire and can be downloaded without a GitHub account, unlike
+  # the workflow artifacts above, which are kept for 90 days and need a login.
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+    steps:
+      # The per-board artifacts only; WirelessAndroidAutoDongle-all holds the
+      # same images again and would upload every file twice.
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: WirelessAndroidAutoDongle-raspberrypi*
+          merge-multiple: true
+          path: images
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${{ github.ref_name }}" images/*.img.xz
+          --repo "${{ github.repository }}"
+          --title "${{ github.ref_name }}"
+          --generate-notes

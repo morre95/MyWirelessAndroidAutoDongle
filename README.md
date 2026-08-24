@@ -25,7 +25,7 @@ In theory, this can be extended to more hardware in future with these basic requ
 - Should be able to operate on power provided by the car.
 
 ## Install and run
-[Download a pre-built sd card image](https://github.com/nisargjhaveri/WirelessAndroidAutoDongle/releases) for your board. You can also [build one yourself](BUILDING.md). Install the image on the SD card using your favorite tool.
+[Download a pre-built sd card image](https://github.com/morre95/MyWirelessAndroidAutoDongle/releases) for your board. You can also [build one yourself](BUILDING.md). Install the image on the SD card using your favorite tool.
 
 You may want to update the country code and other settings that works best for you. See [Configurations](#Configurations)
 
