@@ -11,6 +11,9 @@ on:
 jobs:
   build:
     strategy:
+      # One board's flaky download shouldn't throw away the four other builds
+      # that are already 40 minutes in.
+      fail-fast: false
       matrix:
         defconfig:
         - raspberrypi0w
@@ -25,6 +28,18 @@ jobs:
     - uses: actions/checkout@v7
       with:
         submodules: recursive
+
+    # Buildroot re-downloads every package tarball from upstream on each run, so
+    # a mirror outage kills the build long after it started. Tarballs are checked
+    # against known hashes, so a warm dl/ cache is skipped straight past. The
+    # run_id makes each run write a fresh cache, seeded from the previous one via
+    # restore-keys, so newly added packages accumulate instead of being refetched.
+    - name: Cache Buildroot downloads
+      uses: actions/cache@v6
+      with:
+        path: ./buildroot/dl
+        key: buildroot-dl-${{ matrix.defconfig }}-${{ github.run_id }}
+        restore-keys: buildroot-dl-${{ matrix.defconfig }}-
 
     - name: Setup config
       run: make BR2_EXTERNAL=../aa_wireless_dongle/ ${{ matrix.defconfig }}_defconfig
