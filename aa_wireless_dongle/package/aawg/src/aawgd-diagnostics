@@ -1,0 +1,47 @@
+#!/bin/sh
+# Read-only snapshot. Redirect stdout to a file on your computer via SSH.
+
+printf '=== System ===\n'
+date
+uname -a
+uptime
+if [ -r /proc/device-tree/model ]; then
+    tr -d '\000' < /proc/device-tree/model
+    printf '\n'
+fi
+
+printf '\n=== Wi-Fi configuration (no password) ===\n'
+if [ -r /var/run/hostapd.conf ]; then
+    grep -E '^(hw_mode|channel|country_code|ieee80211n|ieee80211ac|wmm_enabled)=' /var/run/hostapd.conf
+fi
+
+printf '\n=== Wi-Fi link and station counters ===\n'
+if command -v iw >/dev/null 2>&1; then
+    iw dev wlan0 info
+    iw dev wlan0 station dump
+    iw dev wlan0 survey dump
+else
+    printf 'iw is unavailable\n'
+fi
+
+printf '\n=== Network counters ===\n'
+cat /proc/net/dev /proc/net/snmp
+
+printf '\n=== CPU temperature and frequency ===\n'
+for f in /sys/class/thermal/thermal_zone*/temp /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq; do
+    [ -r "$f" ] || continue
+    printf '%s: ' "$f"
+    cat "$f"
+done
+
+printf '\n=== Processes ===\n'
+top -b -n 1
+
+printf '\n=== Kernel messages ===\n'
+dmesg
+
+printf '\n=== Recent daemon and system log ===\n'
+tail -n 500 /var/log/messages
+
+printf '\n=== Recent access point log ===\n'
+tail -n 200 /var/log/hostapd

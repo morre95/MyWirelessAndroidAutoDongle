@@ -17,6 +17,7 @@
 #include "usb.h"
 #include "bluetoothHandler.h"
 #include "proxyHandler.h"
+#include "proxyDiagnostics.h"
 
 void empty_signal_handler(int signal) {
     // Empty. We don't want to do anything but interrupt the thread.
@@ -144,8 +145,13 @@ void AAWProxy::forward(ProxyDirection direction, std::atomic<bool>& should_exit)
             break;
     }
 
+    ProxyDiagnostics diagnostics(Config::instance()->getProxyDiagnostics(),
+        direction == ProxyDirection::TCP_to_USB ? "TCP->USB" : "USB->TCP",
+        direction == ProxyDirection::TCP_to_USB ? m_tcp_fd : -1);
+
     while (!should_exit) {
         // Read
+        const auto read_start = diagnostics.begin();
         ssize_t len;
         if (read_message) {
             len = readMessage(read_fd, buffer.data(), buffer.size(), should_exit);
@@ -154,6 +160,9 @@ void AAWProxy::forward(ProxyDirection direction, std::atomic<bool>& should_exit)
                 len = read(read_fd, buffer.data(), buffer.size());
             } while (len < 0 && errno == EINTR && !should_exit);
         }
+        const int read_errno = errno;
+        diagnostics.readCompleted(read_start, len);
+        errno = read_errno;
 
         if (len <= 0) {
             // Start logging read/write details if there is an error.
@@ -175,7 +184,12 @@ void AAWProxy::forward(ProxyDirection direction, std::atomic<bool>& should_exit)
         }
 
         // Write
+        const auto write_start = diagnostics.begin();
         ssize_t wlen = writeFully(write_fd, buffer.data(), len, should_exit);
+        const int write_errno = errno;
+        diagnostics.writeCompleted(write_start, wlen);
+        diagnostics.report();
+        errno = write_errno;
 
         if (wlen <= 0) {
             // Start logging read/write details if there is an error.
@@ -194,6 +208,7 @@ void AAWProxy::forward(ProxyDirection direction, std::atomic<bool>& should_exit)
         }
     }
 
+    diagnostics.report(true);
     stopForwarding(should_exit);
 }
 
@@ -222,6 +237,16 @@ void AAWProxy::handleClient(int server_sock) {
     close(server_sock);
 
     Logger::instance()->info("Tcp server accepted connection\n");
+
+    // Send small headunit responses promptly. This only affects Pi->phone
+    // traffic; the phone controls the options on its own sending socket.
+    const bool no_delay = Config::instance()->getTcpNoDelay();
+    if (setProxyTcpNoDelay(m_tcp_fd, no_delay) < 0) {
+        Logger::instance()->info("Setting TCP_NODELAY failed: %s\n", strerror(errno));
+        return;
+    }
+    Logger::instance()->info("Proxy settings: TCP_NODELAY=%d diagnostics=%d\n",
+        no_delay, Config::instance()->getProxyDiagnostics());
 
     // Phone connected via TCP, we can stop retrying bluetooth connection
     BluetoothHandler::instance().stopConnectWithRetry();

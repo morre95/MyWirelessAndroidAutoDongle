@@ -29,6 +29,8 @@ public:
 
     WifiInfo getWifiInfo();
     ConnectionStrategy getConnectionStrategy();
+    bool getTcpNoDelay();
+    bool getProxyDiagnostics();
 
     std::string getUniqueSuffix();
 private:
