@@ -88,6 +88,14 @@ ConnectionStrategy Config::getConnectionStrategy() {
 
     return connectionStrategy.value();
 }
+
+bool Config::getTcpNoDelay() {
+    return getenv("AAWG_TCP_NODELAY", 1) != 0;
+}
+
+bool Config::getProxyDiagnostics() {
+    return getenv("AAWG_PROXY_DIAGNOSTICS", 0) != 0;
+}
 #pragma endregion Config
 
 #pragma region Logger

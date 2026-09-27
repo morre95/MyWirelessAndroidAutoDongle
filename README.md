@@ -54,6 +54,11 @@ Edit the `aawgd.conf` file inside the `WirelessAA` drive using a text editor to 
 
 ### Common issues
 
+#### Music or audiobook playback stutters
+
+See [the audio troubleshooting guide](AUDIO-TROUBLESHOOTING.md) for a reversible
+TCP buffering comparison and instructions for collecting Wi-Fi/USB diagnostics.
+
 #### Bluetooth and Wifi seems connected, but the phone stuck at "Looking for Android Auto"
 The most common issue behind this is either bad USB cable or use of wrong USB port on the device. Make sure:
 1. The cable is good quality data cable and not power-only cable
