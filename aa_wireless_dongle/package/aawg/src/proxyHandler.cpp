@@ -209,19 +209,17 @@ void AAWProxy::forward(ProxyDirection direction, std::atomic<bool>& should_exit)
     }
 
     diagnostics.report(true);
-    stopForwarding(should_exit);
+    stopForwarding(direction, should_exit);
 }
 
-void AAWProxy::stopForwarding(std::atomic<bool>& should_exit) {
+void AAWProxy::stopForwarding(ProxyDirection finished, std::atomic<bool>& should_exit) {
     Logger::instance()->info("Interrupting threads to stop forwarding\n");
     should_exit = true;
 
-    if (m_usb_tcp_thread) {
-        pthread_kill(m_usb_tcp_thread->native_handle(), SIGUSR1);
-    }
-
-    if (m_tcp_usb_thread) {
-        pthread_kill(m_tcp_usb_thread->native_handle(), SIGUSR1);
+    std::lock_guard<std::mutex> lock(m_forwarding_threads_mutex);
+    m_forwarding_threads.erase(finished);
+    for (const auto& running: m_forwarding_threads) {
+        pthread_kill(running.second, SIGUSR1);
     }
 }
 
@@ -285,14 +283,19 @@ void AAWProxy::handleClient(int server_sock) {
 
     Logger::instance()->info("Forwarding data between TCP and USB\n");
     std::atomic<bool> should_exit = false;
-    m_usb_tcp_thread = std::thread(&AAWProxy::forward, this, ProxyDirection::USB_to_TCP, std::ref(should_exit));
-    m_tcp_usb_thread = std::thread(&AAWProxy::forward, this, ProxyDirection::TCP_to_USB, std::ref(should_exit));
+    std::thread usb_tcp_thread, tcp_usb_thread;
+    {
+        // Held until both handles are registered, so a thread that stops
+        // immediately still interrupts the other one.
+        std::lock_guard<std::mutex> lock(m_forwarding_threads_mutex);
+        usb_tcp_thread = std::thread(&AAWProxy::forward, this, ProxyDirection::USB_to_TCP, std::ref(should_exit));
+        tcp_usb_thread = std::thread(&AAWProxy::forward, this, ProxyDirection::TCP_to_USB, std::ref(should_exit));
+        m_forwarding_threads[ProxyDirection::USB_to_TCP] = usb_tcp_thread.native_handle();
+        m_forwarding_threads[ProxyDirection::TCP_to_USB] = tcp_usb_thread.native_handle();
+    }
 
-    m_usb_tcp_thread->join();
-    m_usb_tcp_thread = std::nullopt;
-
-    m_tcp_usb_thread->join();
-    m_tcp_usb_thread = std::nullopt;
+    usb_tcp_thread.join();
+    tcp_usb_thread.join();
 
     signal(SIGUSR1, SIG_DFL);
 

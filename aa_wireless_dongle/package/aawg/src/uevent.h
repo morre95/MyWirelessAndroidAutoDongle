@@ -1,4 +1,7 @@
+#pragma once
+
 #include <optional>
+#include <mutex>
 #include <thread>
 #include <list>
 #include <map>
@@ -23,10 +26,11 @@ public:
 
 private:
     UeventMonitor() {};
-    UeventMonitor(UeventMonitor const&);
-    UeventMonitor& operator=(UeventMonitor const&);
+    UeventMonitor(UeventMonitor const&) = delete;
+    UeventMonitor& operator=(UeventMonitor const&) = delete;
 
     void monitorLoop(int nl_socket);
 
+    std::mutex handlersMutex;
     std::list<std::function<bool(UeventEnv)>> handlers;
 };
