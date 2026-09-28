@@ -1,11 +1,17 @@
 #pragma once
 
 #include <atomic>
+#include <map>
+#include <mutex>
 #include <optional>
 #include <thread>
+#include <pthread.h>
 
 class AAWProxy {
 public:
+    AAWProxy() = default;
+    AAWProxy(const AAWProxy&) = delete;
+    AAWProxy& operator=(const AAWProxy&) = delete;
     ~AAWProxy();
 
     std::optional<std::thread> startServer(int32_t port);
@@ -18,7 +24,7 @@ private:
 
     void handleClient(int server_fd);
     void forward(ProxyDirection direction, std::atomic<bool>& should_exit);
-    void stopForwarding(std::atomic<bool>& should_exit);
+    void stopForwarding(ProxyDirection finished, std::atomic<bool>& should_exit);
 
     ssize_t readFully(int fd, unsigned char *buf, size_t nbyte, std::atomic<bool>& should_exit);
     ssize_t writeFully(int fd, const unsigned char *buf, size_t nbyte, std::atomic<bool>& should_exit);
@@ -28,8 +34,10 @@ private:
     int m_usb_fd = -1;
     int m_tcp_fd = -1;
 
-    std::optional<std::thread> m_usb_tcp_thread = std::nullopt;
-    std::optional<std::thread> m_tcp_usb_thread = std::nullopt;
+    // Forwarding threads that are still running, so they can be interrupted.
+    // A thread removes itself before it exits, so every handle here is alive.
+    std::mutex m_forwarding_threads_mutex;
+    std::map<ProxyDirection, pthread_t> m_forwarding_threads;
 
     std::atomic<bool> m_log_communication = false;
 };

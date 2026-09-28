@@ -49,20 +49,33 @@ UsbManager::UsbManager() {
     }
 }
 
-void UsbManager::writeGadgetFile(std::string gadgetName, std::string relativeFilePath, const char* content) {
+int UsbManager::writeGadgetFile(std::string gadgetName, std::string relativeFilePath, const char* content) {
     std::string gadgetFilePath = "/sys/kernel/config/usb_gadget/" + gadgetName + "/" + relativeFilePath;
     FILE* gadgetFile = fopen(gadgetFilePath.c_str(), "w");
-    fputs(content, gadgetFile);
-    fputc('\n', gadgetFile);
-    fclose(gadgetFile);
+    if (gadgetFile == nullptr) {
+        return errno;
+    }
+
+    // configfs applies the value on flush, so errors like EBUSY surface from fclose.
+    const bool written = fputs(content, gadgetFile) >= 0 && fputc('\n', gadgetFile) != EOF;
+    const int writeErrno = errno;
+    if (fclose(gadgetFile) != 0) {
+        return errno;
+    }
+    return written ? 0 : writeErrno;
 }
 
 void UsbManager::enableGadget(std::string gadgetName) {
-    writeGadgetFile(gadgetName, "UDC", s_udcName.c_str());
+    if (int error = writeGadgetFile(gadgetName, "UDC", s_udcName.c_str()); error != 0) {
+        Logger::instance()->info("USB Manager: Failed to enable gadget %s on UDC %s: %s\n", gadgetName.c_str(), s_udcName.c_str(), strerror(error));
+    }
 }
 
 void UsbManager::disableGadget(std::string gadgetName) {
-    writeGadgetFile(gadgetName, "UDC", "");
+    // ENODEV means the gadget was not bound to a UDC, i.e. it is already disabled.
+    if (int error = writeGadgetFile(gadgetName, "UDC", ""); error != 0 && error != ENODEV) {
+        Logger::instance()->info("USB Manager: Failed to disable gadget %s: %s\n", gadgetName.c_str(), strerror(error));
+    }
 }
 
 void UsbManager::switchToAccessoryGadget() {

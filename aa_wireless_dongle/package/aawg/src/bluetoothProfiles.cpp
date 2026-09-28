@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
 #include <vector>
 
 #include "common.h"
@@ -16,6 +17,11 @@
 #include "proto/WifiInfoResponse.pb.h"
 
 static constexpr const char* INTERFACE_BLUEZ_PROFILE = "org.bluez.Profile1";
+
+// The launch sequence runs on the D-Bus dispatcher thread. Bound every read and
+// write so an unresponsive phone cannot stall all other D-Bus callbacks. Long
+// enough to cover the phone joining the WiFi network before it reports status.
+static constexpr time_t LAUNCH_IO_TIMEOUT_SECONDS = 30;
 
 
 #pragma region BluezProfile
@@ -36,6 +42,16 @@ public:
         // Make fd blocking
         int fd_flags = fcntl(m_fd, F_GETFL);
         fcntl(m_fd, F_SETFL, fd_flags & ~O_NONBLOCK);
+
+        struct timeval timeout = {
+            .tv_sec = LAUNCH_IO_TIMEOUT_SECONDS,
+            .tv_usec = 0,
+        };
+        if (setsockopt(m_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) ||
+            setsockopt(m_fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout))) {
+            Logger::instance()->info("Setting bluetooth socket timeout failed: %s. Abort.\n", strerror(errno));
+            return;
+        }
 
         WifiInfo wifiInfo = Config::instance()->getWifiInfo();
 

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string>
 #include <chrono>
 
@@ -12,10 +14,10 @@ public:
 
 private:
     UsbManager();
-    UsbManager(UsbManager const&);
-    UsbManager& operator=(UsbManager const&);
+    UsbManager(UsbManager const&) = delete;
+    UsbManager& operator=(UsbManager const&) = delete;
 
-    void writeGadgetFile(std::string gadgetName, std::string relativeFilePath, const char* content);
+    int writeGadgetFile(std::string gadgetName, std::string relativeFilePath, const char* content);
     void enableGadget(std::string name);
     void disableGadget(std::string name);
 

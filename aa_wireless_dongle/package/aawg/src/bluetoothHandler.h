@@ -27,8 +27,8 @@ public:
 
 private:
     BluetoothHandler() {};
-    BluetoothHandler(BluetoothHandler const&);
-    BluetoothHandler& operator=(BluetoothHandler const&);
+    BluetoothHandler(BluetoothHandler const&) = delete;
+    BluetoothHandler& operator=(BluetoothHandler const&) = delete;
 
     DBus::ManagedObjects getBluezObjects();
 
