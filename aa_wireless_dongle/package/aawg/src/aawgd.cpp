@@ -16,7 +16,14 @@ int main(void) {
     Logger::instance()->info("AA Wireless Dongle\n");
 
     // Global init
-    std::optional<std::thread> ueventThread =  UeventMonitor::instance().start();
+    std::optional<std::thread> ueventThread = UeventMonitor::instance().start();
+    if (!ueventThread) {
+        return 1;
+    }
+    // The monitor runs for the lifetime of the daemon and is never joined.
+    // Detaching it lets main() return without std::thread calling terminate().
+    ueventThread->detach();
+
     UsbManager::instance().init();
     BluetoothHandler::instance().init();
 
@@ -61,8 +68,4 @@ int main(void) {
             sleep(2);
         }
     }
-
-    ueventThread->join();
-
-    return 0;
 }
