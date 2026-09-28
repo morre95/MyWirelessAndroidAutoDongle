@@ -229,7 +229,13 @@ void BluetoothHandler::retryConnectLoop(std::shared_ptr<std::promise<void>> stop
     std::future<void> connectWithRetryFuture = stopPromise->get_future();
 
     while (!should_exit) {
-        connectDevice();
+        // D-Bus calls throw on error replies (e.g. bluetoothd restarting). An
+        // exception escaping this thread would terminate the daemon.
+        try {
+            connectDevice();
+        } catch (const DBus::Error& e) {
+            Logger::instance()->info("Bluetooth connect attempt failed: %s\n", e.what());
+        }
 
         if (connectWithRetryFuture.wait_for(std::chrono::seconds(20)) == std::future_status::ready) {
             should_exit = true;
@@ -245,7 +251,11 @@ void BluetoothHandler::retryConnectLoop(std::shared_ptr<std::promise<void>> stop
     }
 
     if (Config::instance()->getConnectionStrategy() != ConnectionStrategy::DONGLE_MODE) {
-        BluetoothHandler::instance().powerOff();
+        try {
+            powerOff();
+        } catch (const DBus::Error& e) {
+            Logger::instance()->info("Bluetooth power off failed: %s\n", e.what());
+        }
     }
 }
 

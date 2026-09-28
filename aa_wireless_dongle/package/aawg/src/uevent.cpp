@@ -71,11 +71,11 @@ std::optional<std::thread> UeventMonitor::start() {
 
     struct sockaddr_nl address = {
         .nl_family = AF_NETLINK,
-        .nl_pid = (unsigned int)getpid(),
+        .nl_pid = static_cast<unsigned int>(getpid()),
         .nl_groups = -1u
     };
 
-    if (bind(nl_sock, (struct sockaddr*)&address, sizeof(address)) < 0) {
+    if (bind(nl_sock, reinterpret_cast<struct sockaddr*>(&address), sizeof(address)) < 0) {
         Logger::instance()->info("bind failed for netlink socket: %s\n", strerror(errno));
         return std::nullopt;
     }

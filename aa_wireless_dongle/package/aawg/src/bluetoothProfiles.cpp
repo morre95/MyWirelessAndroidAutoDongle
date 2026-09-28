@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <vector>
+#include <limits>
 
 #include "common.h"
 #include "bluetoothHandler.h"
@@ -166,19 +167,22 @@ private:
     }
 
     bool SendMessage(MessageId messageId, google::protobuf::MessageLite* message) {
-        uint16_t messageSize = (uint16_t)message->ByteSizeLong();
-        uint16_t length = messageSize + 4;
+        const size_t messageSize = message->ByteSizeLong();
+        if (messageSize > std::numeric_limits<uint16_t>::max()) {
+            Logger::instance()->info("%s too large to send: %zu bytes\n", MessageName(messageId).c_str(), messageSize);
+            return false;
+        }
 
-        std::vector<unsigned char> buffer(length);
+        std::vector<unsigned char> buffer(messageSize + 4);
 
         uint16_t networkShort = 0;
-        networkShort = htons(messageSize);
+        networkShort = htons(static_cast<uint16_t>(messageSize));
         memcpy(buffer.data(), &networkShort, sizeof(networkShort));
 
         networkShort = htons(static_cast<uint16_t>(messageId));
         memcpy(buffer.data() + 2, &networkShort, sizeof(networkShort));
 
-        if (!message->SerializeToArray(buffer.data() + 4, messageSize)) {
+        if (!message->SerializeToArray(buffer.data() + 4, static_cast<int>(messageSize))) {
             Logger::instance()->info("Error serializing %s, messageId: %d\n", MessageName(messageId).c_str(), static_cast<int>(messageId));
             return false;
         }

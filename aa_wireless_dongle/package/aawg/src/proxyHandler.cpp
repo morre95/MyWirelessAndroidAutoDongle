@@ -216,10 +216,18 @@ void AAWProxy::stopForwarding(ProxyDirection finished, std::atomic<bool>& should
     Logger::instance()->info("Interrupting threads to stop forwarding\n");
     should_exit = true;
 
-    std::lock_guard<std::mutex> lock(m_forwarding_threads_mutex);
+    std::unique_lock<std::mutex> lock(m_forwarding_threads_mutex);
     m_forwarding_threads.erase(finished);
-    for (const auto& running: m_forwarding_threads) {
-        pthread_kill(running.second, SIGUSR1);
+    m_forwarding_threads_changed.notify_all();
+
+    // A signal that lands just before a thread enters a blocking read() or
+    // write() is lost, and /dev/usb_accessory does not support poll(). Keep
+    // interrupting until every other thread has seen should_exit and stopped.
+    while (!m_forwarding_threads.empty()) {
+        for (const auto& running: m_forwarding_threads) {
+            pthread_kill(running.second, SIGUSR1);
+        }
+        m_forwarding_threads_changed.wait_for(lock, std::chrono::milliseconds(100));
     }
 }
 
@@ -324,7 +332,7 @@ std::optional<std::thread> AAWProxy::startServer(int32_t port) {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
 
-    if (bind(server_sock, (struct sockaddr*)&address, sizeof(address)) < 0) {
+    if (bind(server_sock, reinterpret_cast<struct sockaddr*>(&address), sizeof(address)) < 0) {
         Logger::instance()->info("bind failed: %s\n", strerror(errno));
         close(server_sock);
         return std::nullopt;

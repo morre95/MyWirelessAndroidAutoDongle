@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <condition_variable>
 #include <map>
 #include <mutex>
 #include <optional>
@@ -37,6 +38,7 @@ private:
     // Forwarding threads that are still running, so they can be interrupted.
     // A thread removes itself before it exits, so every handle here is alive.
     std::mutex m_forwarding_threads_mutex;
+    std::condition_variable m_forwarding_threads_changed;
     std::map<ProxyDirection, pthread_t> m_forwarding_threads;
 
     std::atomic<bool> m_log_communication = false;
