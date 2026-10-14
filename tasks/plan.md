@@ -1,6 +1,9 @@
 # Implementation plan: Radxa ZERO 3W support
 
-**Status:** Draft for owner review (Phase 2: Plan).
+**Status:** Approved by the owner on 2026-10-14 (Phase 2: Plan).
+**Plan approval:** Owner confirmed: "ja jag godkänner planen".
+**Task breakdown:** Approved by the owner on 2026-10-14: "ja jag godkänner uppgiftslistan".
+**Execution:** Phase 4 started with task #5 source investigation; hardware identification is pending because the ordered board has not arrived.
 **Date:** 2026-10-14
 **Specification:** [Approved hardware-support spec, issue #4](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/4).
 **Target:** Radxa ZERO 3W, 1 GB RAM, no eMMC, microSD boot.
@@ -14,9 +17,9 @@ The specification has been approved. Its acceptance requirements include 10 cold
 
 RAM and absence of eMMC are confirmed; PCB revision, wireless module, phone/headunit baseline and final cost accounting remain unresolved. This plan defines investigation and verification points rather than inventing a kernel or firmware selection.
 
-Phase 3 will create implementable tasks in GitHub Issues after this plan is approved. Do not create `tasks/todo.md`: the project uses the external tracker. Phase 4 begins only after the task breakdown is reviewed. No code changes are part of this planning delivery.
+The owner has approved the Phase 3 implementation task breakdown in GitHub Issues. Do not create `tasks/todo.md`: the project uses the external tracker. Phase 4 may proceed in dependency order. Source research for #5 is recorded in `docs/adr/0001-radxa-zero3w-platform.md`; final platform selection awaits identification of the delivered board.
 
-## Proposed architecture
+## Approved architecture
 
 ### Continue using the existing Buildroot external tree
 
@@ -58,7 +61,7 @@ The existing accessory patches were rebased to the Pi 6.12 kernel. Verify compat
 
 Build order: **A → B → C/D → E → F → G**.
 
-This is a sequence of user-visible verification slices, not separate product modules. Task breakdown will split stages where changes exceed five files or a focused session, especially boot construction and radio packaging.
+This is a sequence of user-visible verification slices, not separate product modules. The linked task breakdown splits boot construction, driver packaging, firmware packaging and hardware verification into focused slices. If the resolved source choice needs more than five files in a task, split the prerequisite before implementation.
 
 ## Verification checkpoints
 
@@ -135,9 +138,27 @@ Task-specific checks will include image contents, hashes and the selected kernel
 
 ## Task-list index
 
-**Canonical task list: GitHub Issues.** Issue #4 is the parent specification. No implementation task issues have been created in this Phase 2 draft.
+**Canonical task list: GitHub Issues.** Issue #4 is the parent specification. The 13 approved tasks are native GitHub sub-issues, with native blocked-by dependencies and standard triage labels recording readiness or missing information.
 
-After plan approval, Phase 3 will populate this section with ordered tracker links for the implementation slices and their dependencies. Each issue will contain acceptance criteria, executable verification where applicable, likely files (at most approximately five), and spec AC references. Checkpoints will remain in this plan or be linked as tracker items; avoid duplicating task state in a local checklist.
+| Order | Stage | Task | Blocked by |
+| --- | --- | --- | --- |
+| 1 | A | [#5: Radxa: identify the board and select pinned platform sources](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) | — |
+| 2 | B | [#6: Radxa: isolate Raspberry Pi driver initialization](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/6) | [#5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) |
+| 3 | B | [#7: Radxa: build the pinned kernel and boot components](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/7) | [#5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5), [#6](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/6) |
+| 4 | B | [#8: Radxa: generate a bootable microSD image](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/8) | [#7](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/7) |
+| 5 | C | [#9: Radxa: enable and verify the Android accessory USB path](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/9) | [#8](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/8) |
+| 6 | D | [#10: Radxa: package the selected wireless driver](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/10) | [#7](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/7) |
+| 7 | D | [#11: Radxa: include redistributable wireless firmware](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/11) | [#10](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/10) |
+| 8 | D | [#12: Radxa: start onboard Wi-Fi AP and Bluetooth pairing](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/12) | [#8](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/8), [#11](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/11) |
+| 9 | E | [#13: Radxa: verify the complete first-use and reconnection flow](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/13) | [#9](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/9), [#12](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/12) |
+| 10 | F | [#14: Radxa: add the image to Compose, CI and release packaging](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/14) | [#13](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/13) |
+| 11 | G | [#15: Radxa: document installation, board additions and hardware cost](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/15) | [#13](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/13), [#14](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/14) |
+| 12 | G | [#16: Radxa: complete physical acceptance and Raspberry Pi regression checks](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/16) | [#15](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/15) |
+| 13 | G | [#17: Radxa: verify the public release image and download path](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/17) | [#16](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/16) |
+
+Each approved issue contains acceptance criteria, verification, likely files, estimated scope and spec references. Task state lives in GitHub; this table is an index, not a second checklist.
+
+Checkpoints follow platform selection (#5), fresh-card boot (#6–#8), kernel/radio packaging (#9–#11), required interfaces (#12), complete user flow (#13), and final distribution/physical acceptance (#14–#17). At each checkpoint, record completed results, unresolved failures and affected regressions before proceeding.
 
 ## Risks and mitigations
 
@@ -167,7 +188,6 @@ Bootloader/kernel/device-tree/radio versions and image layout are engineering de
 
 ## Sources and approval boundary
 
-Architecture proposals follow the approved [specification](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/4), the existing repository build/runtime paths and the official [Buildroot external-tree documentation](https://buildroot.org/downloads/manual/manual.html). Revision, port and power investigation follows the [Radxa hardware guide](https://docs.radxa.com/en/zero/zero3/hardware-design/hardware-interface) and [FAQ](https://docs.radxa.com/en/zero/zero3/faq).
+The approved architecture follows the approved [specification](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/4), the existing repository build/runtime paths and the official [Buildroot external-tree documentation](https://buildroot.org/downloads/manual/manual.html). Revision, port and power investigation follows the [Radxa hardware guide](https://docs.radxa.com/en/zero/zero3/hardware-design/hardware-interface) and [FAQ](https://docs.radxa.com/en/zero/zero3/faq).
 
-This plan is the Phase 2 review artifact. Owner approval of the spec does not by itself approve this plan, select unresolved platform sources, or authorize starting implementation before the subsequent workflow gates.
-
+The owner has approved the specification, Phase 2 plan and Phase 3 task breakdown. Phase 4 is authorized in dependency order. These approvals do not select unresolved platform sources or mark hardware acceptance complete. Task #5 remains open pending the board's PCB/radio identification and final source selection.
