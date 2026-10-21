@@ -373,7 +373,7 @@ Compilation exposed three problems that patch-application checks did not detect:
 | `cfg80211_ops.set_monitor_channel` includes a net-device argument, but the patched SDK enables that path only at 6.13+ | `patches/aic8800/0001-Handle-monitor-callback-in-Linux-6.12.114.patch` enables the existing signature and both internal call sites for the pinned 6.12.114 candidate | Callback type error resolved |
 | Two RX preallocation definitions use `()` despite existing `(void)` declarations, rejected by Clang's strict-prototype check | `patches/aic8800/0002-Use-strict-RX-preallocation-prototypes.patch` matches the existing header declarations | All three AIC aggregate objects compile for ARM64 |
 
-The AIC patch paths above are relative to `aa_wireless_dongle/board/radxa/zero3w/`. These are preparation patches for the pinned candidates. No active defconfig consumes them yet. Future integration must apply the existing two shared accessory patches **before** the board-local Linux patches (HID correction, then the DT variant below), and the official AIC Debian patch series **before** the two scoped AIC patches. Give Radxa its own Linux download hash; do not select the Pi Linux hash or apply the Radxa-only patches to the retained Pi pin.
+The AIC patch paths above are relative to `aa_wireless_dongle/board/radxa/zero3w/`. These are preparation patches for the pinned candidates. No active defconfig consumes them yet. Future integration must apply the existing two shared accessory patches **before** the board-local Linux patches (HID correction, DT variant, then GPIO defaults below), and the official AIC Debian patch series **before** the two scoped AIC patches. Give Radxa its own Linux download hash; do not select the Pi Linux hash or apply the Radxa-only patches to the retained Pi pin.
 
 To reproduce on fresh, verified source extractions, set `RADXA_LINUX_SRC`, `RADXA_AIC_SRC`, `RADXA_OUT` and `RADXA_REPO` to absolute paths. `RADXA_AIC_SRC` is the archive root containing `src/` and `debian/`. Host tools must include LLVM/Clang, make, flex, bison and bc.
 
@@ -432,6 +432,100 @@ The source uses the pinned kernel's [fixed-regulator binding](https://github.com
 The new target compiled without DTC diagnostics. Compiled-tree checks using libfdt verified controller aliases/status, the SDIO power-sequence phandle and GPIO polarity, all six SDIO pinmux/drive settings, antenna GPIO/pinctrl/polarity, the inherited delays, UART flow control and OTG mode. The generic ZERO 3W DTB remained byte-identical to its recorded hash. The experimental DTB is 55,029 bytes, SHA-256 `39deb5067daa1eea5c638f93aadbd82ba17d01169a0f2632642dd6e952722660`; local evidence is `/tmp/radxa-build-check/aic-dtb-build.log` and `check-aic-dtb.py`. Patch application and reverse checks also passed.
 
 This is a compiled source candidate, not a complete AIC runtime or full schema/hardware validation. No shipping defconfig selects it. Bluetooth GPIO/reset/UART initialization, a Buildroot target integration, firmware terms and physical boot/radio/accessory checks remain pending.
+
+### Mainline GPIO ownership and power-sequence preparation: 2026-10-21
+
+Read-only inspection after the reference cold-start experiment again found PC1
+output low, PB3 input low/IRQ, PB4 input high, PC0 output high and antenna PD3
+output low. UART RX/TX/CTS were owned by the serial controller; the vendor
+Bluetooth node owned RTS in its UART function. Only BSP/fdrv were loaded, not
+`aic8800_btlpm`. No pin, driver or service state was changed by this inspection.
+
+The vendor [`rfkill_rk_probe()`](https://github.com/radxa/kernel/blob/fd366906451692033f1ba273e77e7e2f936c78db/net/rfkill/rfkill-bt.c)
+initializes PC1 to `!enable` (physical low for the recorded active-high vendor
+property) and marks its rfkill instance blocked. Its separate unblock path
+drives reset/wake and temporarily switches RTS to GPIO; the powered reference
+does not exercise that path. The pinned AIC BSP's normal D80 path loads BT
+firmware through SDIO, with `AICBT_LPM_ENABLE_DEFAULT=0`. With
+`CONFIG_PLATFORM_ROCKCHIP=n`, `CONFIG_PLATFORM_ROCKCHIP2=n` and
+`CONFIG_GPIO_WAKEUP=n`, it does not provide the vendor GPIO power/wake calls.
+Thus mainline must describe the board's pin state independently of that rfkill
+driver; compiling `aic8800_btlpm` is not a substitute for the observed setup.
+
+Patch `0005-Set-AIC-Bluetooth-GPIO-defaults.patch`, applied after `0004`, adds
+three standard GPIO hogs to the AIC-only DT. GPIO0's default pinctrl state uses
+dedicated groups with PC1 pulled down and PB3/PB4 pulled up, matching the live
+reference pinconf. Schmitt input is enabled for these GPIOs and all four UART
+signals. UART RX/TX retain pull-up; RTS/CTS retain disabled bias. GPIO hogs
+acquire their lines when the GPIO controller probes, per the pinned
+[`gpio.txt` binding](https://github.com/gregkh/linux/blob/85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e/Documentation/devicetree/bindings/gpio/gpio.txt)
+and [`gpiolib-of.c`](https://github.com/gregkh/linux/blob/85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e/drivers/gpio/gpiolib-of.c).
+
+| Signal | Mainline candidate owner and behavior |
+| --- | --- |
+| GPIO0 PC0, Wi-Fi power | Existing `mmc-pwrseq-simple`; no hog or second owner |
+| GPIO0 PC1, vendor BT control | GPIO hog, physical output low; no pulse requested |
+| GPIO0 PB3, vendor BT host-wake | GPIO hog, input; no IRQ/wakeup service provided |
+| GPIO0 PB4, vendor BT wake | GPIO hog, input; its observed high value is not driven |
+| GPIO2 PB3/PB4/PB5/PB6 | UART1 RX/TX/RTS/CTS, function 2; serial driver owns RTS |
+| GPIO3 PD3, antenna | Existing active-low, always-on fixed regulator |
+
+Drive strength needs special handling. The reference pinconf labels report
+4/12 mA, but its RK3568 readback uses the generic two-bit lookup; those labels
+are not the levels accepted by the RK3568 setter. Read-only regmap inspection
+resolved the actual eight-bit fields:
+
+| Register block and offset | Read value | Relevant pin fields | Requested level |
+| --- | --- | --- | --- |
+| PMUGRF `0x0084`, `0x0088`, `0x0090` | Each `0x00000101` | PB3/PB4/PC1 each `0x01` | 0 |
+| GRF `0x0254` | `0x00000f03` | UART RX high byte `0x0f` | 3 |
+| GRF `0x0258` | `0x00000f0f` | UART TX/RTS each `0x0f` | 3 |
+| GRF `0x025c` | `0x00000303` | UART CTS low byte `0x03` | 1 |
+
+The pinned mainline [`rockchip_set_drive_perpin()`](https://github.com/gregkh/linux/blob/85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e/drivers/pinctrl/pinctrl-rockchip.c)
+encodes RK3568 levels as `(1 << (level + 1)) - 1` with eight bits per pin;
+the patch uses levels 0/3/1 to reproduce those fields, not the diagnostic mA
+labels. The displayed pull argument `(1 ohms)` is also not a measured resistor
+value. Slew rate is reported enabled on the reference, but the pinned mainline
+driver exposes no slew-rate setter; this patch makes no electrical equivalence
+claim for that setting. Existing Wi-Fi/antenna pin configuration is retained.
+
+The pinned [`mmc-pwrseq-simple`](https://github.com/gregkh/linux/blob/85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e/drivers/mmc/core/pwrseq_simple.c)
+asserts logical reset 1 before power-on, giving physical PC0 low for its
+active-low descriptor, then deasserts to physical high after power-on. The
+inherited 100 ms post-power-on and 5,000,000 us power-off parameters are retained;
+the latter feeds a 5–10 s `usleep_range`, not a measured board requirement.
+The candidate retains `serial1` at UART1 and has no Bluetooth serdev child or
+invented upstream compatible. Input hogs reserve PB3/PB4: revisit ownership
+before enabling GPIO wake, btlpm, suspend/resume or another GPIO consumer.
+
+Verification used the re-downloaded, hash-verified Linux 6.12.114 source and
+the existing LLVM ARM64 output/configuration. GPIO/pinctrl, MMC pwrseq,
+Rockchip MMC/UART and fixed-regulator drivers are enabled in that configuration.
+Both DT targets compile without DTC diagnostics. Six `pylibfdt` tests inspect
+the compiled directions/polarity, pinctrl groups/pulls/drive levels/Schmitt,
+sole PC0 owner, UART flow-control pins/alias, antenna/SDIO settings and unchanged
+generic DT. The
+Bluetooth-direction test first failed on missing hogs; an active-low mutation
+of PC1 was also rejected. Pull/drive checks failed before the measured settings
+were added; a CTS level-3 mutation was rejected after the fix. Patch
+reverse/application checks pass.
+
+The AIC DTB is **56,025 bytes**, SHA-256
+`3bd46eb308d09a4fb62ca7ebe8a522a81de5d9953db094bbf99c106772ae956e`.
+The generic DTB remains byte-identical, SHA-256
+`eefcec9be8350d21e2f578bf9734279e4583779a87177411f4253feecc4b7d86`.
+Full dt-schema validation was not run; the host lacks `dtschema`.
+Buildroot `check-package` could not run on the host or in the existing build
+container because both lack its `python-magic` dependency; no patch-metadata
+lint pass is claimed.
+
+This supplies deterministic requested states after driver probing, not proof
+of glitch-free electrical behavior or acquisition order on hardware. It does
+not establish that PC1 is physically required by the radio. A controlled boot
+with the matching mainline kernel/DT must still validate GPIO acquisition,
+SDIO power, UART reset/attachment and radio operation. No candidate kernel or
+DT was installed on the reference card. Task #5 and firmware terms remain open.
 
 ### Boot-chain build and packing
 

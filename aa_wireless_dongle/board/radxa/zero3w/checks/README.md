@@ -62,6 +62,31 @@ and USB OTG mode; Bluetooth reset/wake handling remains a runtime prerequisite.
 Compilation and compiled-property checks are recorded in the ADR. This target
 has not been booted and does not replace the generic upstream ZERO 3W DT.
 
+Patch `0005` then requests the reference Bluetooth GPIO directions: PC1 output
+low with pull-down, PB3/PB4 input with pull-up. UART1 retains all four
+hardware-flow-control pins. GPIO/UART Schmitt and drive levels match the
+reference readback; the ADR records raw drive fields because the diagnostic
+mA labels cannot be copied as RK3566 drive-strength levels. Slew-rate control
+is not provided by the pinned mainline driver. PC0 stays owned by MMC pwrseq.
+The input hogs reserve the wake lines and provide no IRQ or suspend/wakeup handling;
+review their ownership before enabling GPIO wake or `aic8800_btlpm`.
+
+Rebuild both compiled targets and check them from the repository root:
+
+```sh
+make -C "$RADXA_LINUX_SRC" O="$RADXA_OUT" ARCH=arm64 LLVM=1 -j8 \
+    rockchip/rk3566-radxa-zero-3w.dtb \
+    rockchip/rk3566-radxa-zero-3w-aic8800d80.dtb
+python3 tests/radxa_aic_dtb_test.py
+```
+
+The six tests use `pylibfdt`, either installed for the host interpreter or from
+the existing boot-chain check's matching Python `site-packages`. The default
+DTB directory is the host `output/radxa-platform-check/linux/arch/arm64/boot/dts/rockchip`
+under `buildroot/`; set `RADXA_DTB_DIR` when using another build output. The
+generic-tree hash is tied to the pinned 6.12.114 source. These checks prove
+compiled properties; full schema and physical mainline validation remain pending.
+
 ## Bounded Bluetooth UART reset candidate
 
 The standalone `aic-hci-reset.c` helper prepares the reset step observed in

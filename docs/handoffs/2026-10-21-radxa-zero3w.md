@@ -114,13 +114,29 @@ Keep task #5 open and retain downstream dependencies while these remain unresolv
 The approval covered this specific question; do not send further external
 messages or repeated follow-ups without authorization.
 
+## Progress after the initial handoff
+
+The readiness gate now has 17 host tests and has been checked against the live
+reference sysfs layout. Commit `2d35d0d` records the corrected cold-start
+experiment: readiness → bounded reset → hciattach → BlueZ succeeded in that
+order. Automatic restoration completed, and temporary systemd configuration
+was removed. This validates the reference experiment, not mainline startup.
+
+Board patch `0005` prepares AIC-only GPIO/UART defaults from read-only pinconf
+and raw drive-register inspection. Both DT targets compile and six compiled-DT
+tests pass; the generic DTB remains unchanged. GPIO directions, pulls, Schmitt
+and RK3566 drive levels are recorded in the ADR. No candidate kernel or DT was
+installed; physical mainline boot, GPIO acquisition and radio behavior remain
+unverified. See the ADR and checks README for reproduction and limitations.
+
 ## Next work
 
 1. Read actual Git state, #5 and the latest #109 response. Preserve the local
    commits; do not restart the source investigation or reflash the reference.
-2. Continue the remaining platform-feasibility slice: establish a concrete
-   firmware-readiness gate and mainline pin/power requirements using the source
-   and physical evidence above. Keep experimental preparation scoped and tested.
+2. Continue the remaining platform-feasibility slice using the readiness gate
+   and prepared mainline pin/power candidate above. Prepare a controlled boot
+   with a matching kernel/DT and recovery path before physical mainline testing.
+   Keep experimental preparation scoped and tested.
 3. Resolve and record firmware terms from authoritative evidence. If a response
    requires a source change or new approval, surface that explicitly.
 4. Once #5 is actually complete, update the ADR/task and proceed in the approved
