@@ -144,6 +144,55 @@ The next investigation compared the existing accessory patches with immutable ve
 
 Linux 6.12.114 was listed as non-EOL longterm by [kernel.org](https://www.kernel.org/releases.json) on 2026-10-21. This is an experiment pin, not a final release choice. The running Radxa OS kernel remains the separate 6.1.84 diagnostic reference. The AIC device tree and UART/reset requirements still need validating on upstream; the generic ZERO 3W DT must not silently substitute AP6212 initialization for this board.
 
+### ARM64 compilation slice
+
+The compatibility build used Clang/LLVM `23.1.3`, `bc` `1.07.1`, the upstream ARM64 `defconfig` and the exact archives below. The kernel archive matched kernel.org's `sha256sums.asc`; the AIC archive is pinned by its Git commit and recorded download hash.
+
+| Source archive | SHA-256 |
+| --- | --- |
+| [linux-6.12.114.tar.xz](https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.114.tar.xz) | `7a8589912bd7a8adb07fed074283652cf482a35facef8954554654f0154b4af3` |
+| [AIC source at fc7cbdd](https://codeload.github.com/radxa-pkg/aic8800/tar.gz/fc7cbdd1791416c2457fa27a59e508bf325c9c3f) | `cae09dc427fc6c4a7a1887b44612c8a30b39596fe04aeaaec66b8de6581eaa06` |
+
+Compilation exposed three problems that patch-application checks did not detect:
+
+| Reproduced failure | Scoped correction | Result |
+| --- | --- | --- |
+| `hid_report_raw_event` requires six arguments; accessory backport supplies five | `board/radxa/zero3w/patches/linux/0003-Pass-HID-buffer-size-for-Linux-6.12.114.patch` supplies the completed request length as both readable-buffer and report-data size | `libcomposite.o` and `usb_f_accessory.o` compile for ARM64 |
+| `cfg80211_ops.set_monitor_channel` includes a net-device argument, but the patched SDK enables that path only at 6.13+ | `patches/aic8800/0001-Handle-monitor-callback-in-Linux-6.12.114.patch` enables the existing signature and both internal call sites for the pinned 6.12.114 candidate | Callback type error resolved |
+| Two RX preallocation definitions use `()` despite existing `(void)` declarations, rejected by Clang's strict-prototype check | `patches/aic8800/0002-Use-strict-RX-preallocation-prototypes.patch` matches the existing header declarations | All three AIC aggregate objects compile for ARM64 |
+
+The AIC patch paths above are relative to `aa_wireless_dongle/board/radxa/zero3w/`. These are preparation patches for the pinned candidates. No active defconfig consumes them yet. Future integration must apply the existing two shared accessory patches **before** the Radxa HID patch, and the official AIC Debian patch series **before** the two scoped AIC patches. Give Radxa its own Linux download hash; do not select the Pi Linux hash or apply the Radxa-only patches to the retained Pi pin.
+
+To reproduce on fresh, verified source extractions, set `RADXA_LINUX_SRC`, `RADXA_AIC_SRC`, `RADXA_OUT` and `RADXA_REPO` to absolute paths. `RADXA_AIC_SRC` is the archive root containing `src/` and `debian/`. Host tools must include LLVM/Clang, make, flex, bison and bc.
+
+```sh
+set -eu
+for patch in "$RADXA_REPO"/aa_wireless_dongle/patches/linux/*.patch; do
+    git -C "$RADXA_LINUX_SRC" apply "$patch"
+done
+git -C "$RADXA_LINUX_SRC" apply "$RADXA_REPO/aa_wireless_dongle/board/radxa/zero3w/patches/linux/0003-Pass-HID-buffer-size-for-Linux-6.12.114.patch"
+while read -r patch rest; do
+    case "$patch" in ''|\#*) continue ;; esac
+    git -C "$RADXA_AIC_SRC" apply --include='src/SDIO/**' "$RADXA_AIC_SRC/debian/patches/$patch"
+done < "$RADXA_AIC_SRC/debian/patches/series"
+for patch in "$RADXA_REPO"/aa_wireless_dongle/board/radxa/zero3w/patches/aic8800/*.patch; do
+    git -C "$RADXA_AIC_SRC" apply "$patch"
+done
+make -C "$RADXA_LINUX_SRC" O="$RADXA_OUT" ARCH=arm64 LLVM=1 defconfig
+"$RADXA_LINUX_SRC/scripts/config" --file "$RADXA_OUT/.config" \
+    --module USB_LIBCOMPOSITE --module USB_CONFIGFS \
+    --enable USB_CONFIGFS_UEVENT --enable HID --enable USB_CONFIGFS_F_ACC \
+    --module CFG80211 --enable MMC --module BT --module BT_HCIUART
+make -C "$RADXA_LINUX_SRC" O="$RADXA_OUT" ARCH=arm64 LLVM=1 -j8 olddefconfig modules_prepare
+make -C "$RADXA_LINUX_SRC" O="$RADXA_OUT" ARCH=arm64 LLVM=1 -j8 \
+    drivers/usb/gadget/libcomposite.o drivers/usb/gadget/function/usb_f_accessory.o
+make -C "$RADXA_LINUX_SRC" O="$RADXA_OUT" ARCH=arm64 LLVM=1 -j8 \
+    M="$RADXA_AIC_SRC/src/SDIO/driver_fw/driver/aic8800" \
+    aic8800_bsp/aic8800_bsp.o aic8800_fdrv/aic8800_fdrv.o aic8800_btlpm/aic8800_btlpm.o
+```
+
+All five resulting files were inspected as ELF 64-bit ARM aarch64 objects. No compiler checks were disabled; existing nonfatal SDK warnings remain. The existing proxy socket/diagnostics regression test passed with local socket access enabled. This verifies object compilation only: full kernel/module linking, target DT/boot-chain integration, a Buildroot image and physical operation remain pending. Build logs were kept locally under `/tmp/radxa-build-check/` (`compile.log`, `compile-after-hid.log`, `compile-after-aic.log`, `compile-after-prototypes.log`); these temporary files are not release artifacts.
+
 ## Consequences and next evidence
 
 - Source research can proceed now, but task #5 stays open. Dependent tasks retain their tracker prerequisites.
@@ -154,4 +203,4 @@ Linux 6.12.114 was listed as non-EOL longterm by [kernel.org](https://www.kernel
 
 ## Verification performed
 
-On 2026-10-14, checked the existing Buildroot version and Pi source/patch configuration using task #5's commands and inspected the cited source snapshots. On 2026-10-21, collected the physical diagnostic evidence above, resolved the AIC package tag, matched all six loaded firmware/configuration files against that source, and performed the vendor/upstream accessory patch checks. No Buildroot target image or car-operation result is established by these checks.
+On 2026-10-14, checked the existing Buildroot version and Pi source/patch configuration using task #5's commands and inspected the cited source snapshots. On 2026-10-21, collected the physical diagnostic evidence above, resolved the AIC package tag, matched all six loaded firmware/configuration files against that source, performed vendor/upstream accessory patch checks and reproduced/fixed the three ARM64 object-compilation failures above. No Buildroot target image or car-operation result is established by these checks.

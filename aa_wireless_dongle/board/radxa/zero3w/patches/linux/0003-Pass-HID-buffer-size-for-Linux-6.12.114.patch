@@ -1,0 +1,31 @@
+From: MyWirelessAndroidAutoDongle contributors
+Subject: [PATCH] usb: gadget: accessory: pass HID buffer size on Linux 6.12.114
+
+The selected compatibility candidate has the six-argument HID raw-event API.
+The shared accessory backport still calls the older five-argument API and
+fails to compile against that candidate.
+
+Bound both the readable buffer and the report data to the completed USB
+request length. This does not claim any unreceived bytes are available.
+
+Apply after the two existing shared accessory patches, only for the pinned
+Radxa kernel candidate. Existing Pi source pins and patches stay unchanged.
+
+Source: https://github.com/gregkh/linux/blob/85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e/drivers/hid/hid-core.c
+---
+ drivers/usb/gadget/function/f_accessory.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/usb/gadget/function/f_accessory.c b/drivers/usb/gadget/function/f_accessory.c
+--- a/drivers/usb/gadget/function/f_accessory.c
++++ b/drivers/usb/gadget/function/f_accessory.c
+@@ -501,7 +501,8 @@ static void acc_complete_send_hid_event(struct usb_ep *ep,
+ 		return;
+ 	}
+ 
+-	hid_report_raw_event(hid->hid, HID_INPUT_REPORT, req->buf, length, 1);
++	hid_report_raw_event(hid->hid, HID_INPUT_REPORT, req->buf,
++			     length, length, 1);
+ }
+ 
+ static int acc_hid_parse(struct hid_device *hid)
