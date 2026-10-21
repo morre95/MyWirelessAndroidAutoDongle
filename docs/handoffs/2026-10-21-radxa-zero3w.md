@@ -18,17 +18,26 @@ GitHub Issues are the canonical task tracker; do not create a second task list.
 ## Git state at handoff
 
 Working branch: **`feature/radxa-zero3w-hci-reset`**. The working tree was clean
-before writing this handoff. The following two commits were local and unpushed:
+before this handoff update. Current HEAD is **`2b8efb9`**. The following commits
+are on the local branch after the last recorded main baseline:
 
 | Commit | Content |
 | --- | --- |
 | `d588453` | Standalone bounded UART HCI Reset helper, 13 host tests and documentation |
 | `7998da9` | Physical reset/reattach evidence and firmware-readiness ordering findings |
+| `cfb3f8e` | Initial handoff |
+| `9caf011` | Firmware load-ordering predicate and host fixtures |
+| `9355a6d` | Readiness checks corrected against live reference sysfs; 17 tests |
+| `2d35d0d` | Corrected guarded cold-start experiment and automatic recovery; 4 recovery tests |
+| `2247ca3` | AIC-only mainline GPIO/UART defaults and 6 compiled-DT tests |
+| `2b8efb9` | Selected engineering source baseline, patch order, evidence and limits in ADR-0001 |
 
-This handoff is saved on the same branch in a subsequent commit. At verification,
-remote `main` was **`e7ef1f1`**, merging PR #19 (AIC device-tree preparation).
+This handoff update is saved on the same branch in a subsequent commit. These
+commits have not been pushed by the agent. At the earlier remote verification,
+`main` was **`e7ef1f1`**, merging PR #19 (AIC device-tree preparation).
 PR #18 had already merged the earlier kernel/module/boot-chain checks. The
-current HCI-reset branch did **not** exist on the remote. Recheck before pushing,
+HCI-reset branch did **not** exist on the remote then; remote state was not
+refreshed for this documentation update. Recheck before pushing,
 switching or merging; preserve local work. No push or merge is authorized by
 this handoff request itself.
 
@@ -92,8 +101,11 @@ The next startup contract is:
 
 Do not substitute a fixed sleep or attach after reset failure. At the pinned AIC
 source, `rwnx_mod_init()` calls BSP power/firmware setup before Wi-Fi-driver
-registration. Investigate a concrete readiness gate around that path; interface
-presence/module-load completion is a candidate to verify, not an accepted proof.
+registration. The concrete gate is now `checks/aic-firmware-ready.sh`: require
+both module initstates `live`, normal BSP work mode and the matching D80 SDIO
+interface/driver identity. Interface presence alone is insufficient. Preserve
+the audited build flags and serialized startup ownership documented in ADR-0001;
+the predicate does not establish firmware identity or UART responsiveness.
 
 The vendor `bt_default` rfkill instance was blocked with PC1 output low while
 hci0 was powered. The reference loaded BSP/fdrv, **not** `aic8800_btlpm`. Do not
@@ -105,7 +117,9 @@ required. Mainline pin defaults and radio bring-up still need verification.
 The owner explicitly approved publishing the prepared question. It was published
 as [radxa-pkg/aic8800#109](https://github.com/radxa-pkg/aic8800/issues/109), and its
 title/body were verified against the approved draft. It is linked from #5.
-At handoff it is **open with zero comments**. Check for a response when resuming.
+At the latest GitHub read in this session it was **open with zero comments**.
+It was not queried again for this documentation update. Check for a response
+when resuming.
 
 The maintainer's earlier #54 discussion clarifies GPL v2 driver source versus
 GPL v3 packaging. It does not establish the selected opaque firmware's binary
@@ -129,17 +143,53 @@ and RK3566 drive levels are recorded in the ADR. No candidate kernel or DT was
 installed; physical mainline boot, GPIO acquisition and radio behavior remain
 unverified. See the ADR and checks README for reproduction and limitations.
 
+## Latest decision and issue #5 scope
+
+The owner asked what remained to close #5, then requested help finalizing the
+source combination. Commit `2b8efb9` now selects the **engineering baseline** in
+[ADR-0001](../adr/0001-radxa-zero3w-platform.md#selected-engineering-source-baseline-2026-10-21):
+retained Buildroot 2026.02.3, Linux 6.12.114, U-Boot 2026.01, the existing rkbin
+pin with DDR 1.23/BL31 1.44, the AIC-specific DT plus patches through `0005`,
+and AIC commit `fc7cbdd1791416c2457fa27a59e508bf325c9c3f` with the six matched
+D80 firmware/configuration files. Exact revisions, hashes, patch order and
+startup assumptions are in the ADR; use that record rather than reselecting
+sources from the older historical audit table.
+
+The ADR remains **Proposed for release** because firmware terms remain
+unresolved. This is an engineering input selection, not approval to distribute
+the firmware or a claim of working mainline hardware. The documentation slice
+verified local pins, boot-chain selections, seven patch files at `2247ca3`,
+links/anchors and available archive/blob/DTB hashes; it changed no board state.
+
+The latest #5 read still showed the older UART-reset progress and two unchecked
+acceptance criteria; the retained-Buildroot criterion was checked. Readiness,
+corrected cold-start, GPIO and final source-selection results have **not been
+published to #5**. Updating the local ADR did not update GitHub.
+
+Issue #5 is the source-selection/feasibility task. A complete Buildroot image,
+AP/pairing/accessory operation and car/reliability acceptance belong to later
+issues. A controlled mainline boot can reduce feasibility risk but must not
+silently expand #5 into the full port. The remaining external blocker is
+firmware terms; reconcile the evidence with #5 after those are resolved.
+
 ## Next work
 
 1. Read actual Git state, #5 and the latest #109 response. Preserve the local
    commits; do not restart the source investigation or reflash the reference.
-2. Continue the remaining platform-feasibility slice using the readiness gate
-   and prepared mainline pin/power candidate above. Prepare a controlled boot
-   with a matching kernel/DT and recovery path before physical mainline testing.
-   Keep experimental preparation scoped and tested.
-3. Resolve and record firmware terms from authoritative evidence. If a response
-   requires a source change or new approval, surface that explicitly.
-4. Once #5 is actually complete, update the ADR/task and proceed in the approved
+2. Resume from the selected engineering baseline in ADR-0001. Resolve and record
+   firmware terms from authoritative evidence when a response arrives. If the
+   answer prevents using these files, explicitly reopen the radio/firmware
+   choice; do not infer permission from blanket package metadata.
+3. Prepare the missing #5 progress summary from the local evidence. Obtain
+   authorization to publish it if not supplied by the resumed user request;
+   this handoff request does not authorize external messages. After firmware
+   resolution, review #5's actual acceptance criteria against the ADR before
+   marking it Accepted or closing the issue.
+4. If the owner elects further feasibility testing while waiting, prepare a
+   controlled boot with a matching kernel/DT and recovery path first. Preserve
+   the working reference and keep the experiment scoped; no such boot bundle
+   or test-card image has been prepared yet.
+5. Once #5 is actually complete, update the ADR/task and proceed in the approved
    order: **#6 Pi initialization isolation → #7 Radxa kernel/boot integration →
    #8 complete SD image**. Later tasks cover accessory, wireless and release checks.
 
