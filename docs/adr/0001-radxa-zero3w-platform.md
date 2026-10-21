@@ -227,6 +227,71 @@ This verifies one post-boot status snapshot on the vendor reference. It does
 not establish startup timing, reset/attach ordering, mainline operation,
 pairing, AP coexistence or cold-start acceptance. Keep #5 open.
 
+### Guarded reference-OS cold-start experiment: 2026-10-21
+
+The owner performed two physical power removals/reconnections, each after an
+orderly shutdown and with at least ten seconds without power. Both boots used
+the unchanged Radxa OS/Linux 6.1.84 reference. Before interruption there were
+zero connected Bluetooth devices, hci0 was powered, and Wi-Fi autoconnect plus
+SSH were enabled. No Wi-Fi driver was unloaded or network configuration changed.
+
+Board-local `checks/make-startup-test.sh` generates a diagnostic bundle, not an
+installer or shipping startup sequence. Three uniquely named systemd drop-ins
+replaced the vendor reset command with synchronous module loading, the
+readiness predicate and the bounded ARM64 HCI Reset helper. Attachment requires
+successful reset with `Requires=` plus `After=`; BlueZ similarly requires and
+follows attachment. A boot-enabled rollback timer removes those drop-ins and
+restores reference hciattach/BlueZ. Vendor unit files are preserved. Effective
+units passed `systemd-analyze verify --man=no` on systemd 252.38. Its unrelated,
+nonfatal warning about the reference's world-writable `rkaiq_3A.service` remains.
+
+The first cold boot exposed an incorrect experiment assumption: `modprobe
+aic8800_fdrv` failed at 9.850 s and again at 11.046 s. Neither hciattach nor
+BlueZ executed, demonstrating that the dependency failure blocks later stages.
+Radxa's Debian package indexes `aic8800_fdrv_sdio.ko.xz` and
+`aic8800_bsp_sdio.ko.xz`; `modinfo -F name` reports the unsuffixed internal names
+used by sysfs. `modprobe --show-depends aic8800_fdrv_sdio` resolves both packaged
+files, and loading that name returns 0. This suffix belongs to the reference
+package and is not a Buildroot module-naming decision.
+
+The first automatic rollback started at 193.547 s (the initial timer used
+systemd's default one-minute accuracy). It removed the test drop-ins, but an
+unnecessary `reset-failed bluetooth.service` aborted restoration because the
+never-started BlueZ unit was unloaded after daemon-reload. The reference was
+restored manually before proceeding. The corrected rollback omits that
+operation, and the timer now requests one-second accuracy at boot +180 s.
+Four host regression tests check restoration of a never-started service,
+failure propagation without a success marker, reproduction of the old failure
+and refusal to overwrite an existing generated bundle. Corrected rollback also
+passed on the board before rearming for the second cold start.
+
+The second cold boot used the corrected package name and recovery script.
+The same boot's journal monotonic clock and systemd monotonic properties record:
+
+| Event | Seconds since boot |
+| --- | ---: |
+| Firmware load-ordering predicate succeeded | 10.677309 |
+| Matching successful HCI Reset response logged | 10.721554 |
+| Reset helper process exited with status 0 | 10.742534 |
+| Reset oneshot became active | 10.743369 |
+| hciattach became active | 11.155883 |
+| BlueZ became active | 11.897063 |
+
+All three services reported success; hci0 was powered and SSH returned over
+Wi-Fi. Kernel firmware filename logging appeared at 8.968–9.270 s on the same
+journal monotonic clock; these are log times, not measured upload completion.
+The corrected automatic rollback started at **180.655468 s** and completed at
+**183.086895 s**, with its completion marker present. hciattach/BlueZ were
+active, hci0 powered and the UART line discipline was **15 (N_HCI)** afterward.
+The disabled timer/service, owned drop-ins, helpers and experiment directory
+were then removed; effective unit `DropInPaths` were empty and Wi-Fi/SSH remained
+active. No kernel, DT, firmware or bootloader files were changed.
+
+These are one successful cold-start sequence and one rejected sequence on the
+vendor reference, not Buildroot/mainline validation,
+UART wire timing, pairing/AP coexistence or the approved ten-start acceptance.
+Task #5 and firmware terms remain unresolved.
+
 ## Source findings
 
 | Component | Audited source/reference | What this establishes | Remaining verification |

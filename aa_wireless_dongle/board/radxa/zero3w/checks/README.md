@@ -144,3 +144,61 @@ run exposed the missing `aicbsp_info` path component and the vendor kernel's
 absent owner link; the fixtures now cover both differences. Bluetooth and
 hciattach remained active and the temporary script was removed. Mainline and
 repeated cold-start verification remain pending; see ADR-0001 for evidence limits.
+
+## Guarded reference-OS startup experiment
+
+`make-startup-test.sh` emits configuration into a **new** output directory. It
+does not install files, stop services or reboot anything:
+
+```sh
+sh board/radxa/zero3w/checks/make-startup-test.sh /tmp/new-aic-startup-bundle
+```
+
+Run that example from `aa_wireless_dongle/`, or prefix the script path with it
+from the repository root. Host rollback regression tests run from the root:
+
+```sh
+python3 tests/radxa_startup_test.py
+```
+
+The bundle is specifically for the audited Radxa OS/systemd 252 reference.
+Its reset drop-in loads the Debian package name `aic8800_fdrv_sdio`, checks
+firmware readiness, then runs the ARM64 reset helper. The internal sysfs module
+names remain `aic8800_bsp` / `aic8800_fdrv`. This packaging suffix must not be
+copied into a Buildroot runtime without checking its actual module filenames.
+The attach and BlueZ drop-ins use both `Requires=` and `After=` so failed reset
+blocks attachment and BlueZ. Reset remains active after success for that boot.
+
+An operator must first verify zero connected Bluetooth devices, powered hci0,
+Wi-Fi autoconnect and enabled SSH. Copy the verified readiness script, ARM64
+helper and generated `rollback.sh` to root-owned
+`/var/lib/radxa-aic-startup-test/`. The three drop-ins map `reset.conf`,
+`attach.conf`, `bluez.conf` to the reset instance, hciattach instance and
+`bluetooth.service`, respectively, under `/etc/systemd/system/<unit>.d/`, using
+the unique filename `90-radxa-aic-startup-test.conf`. Refuse existing experiment
+files rather than overwriting another configuration. Preserve all vendor units.
+
+Install the generated rollback service/timer and enable the timer **without
+starting it in the current boot**: its monotonic boot deadline would already
+be past. Verify all effective units with `systemd-analyze verify --man=no`,
+exercise rollback before arming, then restore the test drop-ins and enable the
+timer for the next boot. The timer runs at boot +180 s with 1 s accuracy and
+restores the reference service configuration even after successful testing.
+The rollback service retries failures; its completion marker is `rolled-back`
+under the experiment directory. It must not use `reset-failed` on never-started
+units, which may be unloaded after daemon-reload.
+
+Use an orderly shutdown before the owner removes all power for a cold start.
+Collect same-boot journal monotonic timestamps, reset exit status, attachment
+and BlueZ state before rollback changes those states. Confirm automatic
+restoration, then remove the disabled rollback units, experiment data and any
+remaining temporary files. This diagnostic does not install a shipping startup
+sequence or establish Buildroot/mainline cold-start acceptance.
+
+The 2026-10-21 physical experiment verified one successful cold start with
+readiness at 10.677 s, successful HCI Reset at 10.722 s, hciattach active at
+11.156 s and BlueZ active at 11.897 s. The corrected automatic rollback completed
+at 183.087 s with powered hci0 and N_HCI restored; experiment files were removed.
+An earlier boot with an incorrect package-load name verified failure blocking
+and exposed the unloaded-BlueZ rollback bug covered by the host tests. See the
+ADR for the exact clocks, corrections and remaining hardware acceptance limits.
