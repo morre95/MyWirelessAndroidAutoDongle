@@ -124,6 +124,69 @@ Local evidence is `/tmp/radxa-build-check/hci-hardware-check.log`. No boot, DT, 
 
 The next runtime contract must establish AIC firmware readiness **before** the bounded UART reset, proceed to hciattach only on reset success, and start BlueZ after UART attachment. Source inspection at the pinned AIC commit shows `rwnx_mod_init()` calling `aicbsp_set_subsys(AIC_WIFI, AIC_PWR_ON)` before registering the Wi-Fi driver, with the BSP downloading Bluetooth patches as well. The reference uses `aic8800_bsp` and `aic8800_fdrv`; `aic8800_btlpm` was not loaded. Treat Wi-Fi initialization as part of the readiness investigation; do not invent a fixed sleep or reuse the vendor reset unit's unconditional handoff after failure. Mainline GPIO/pin defaults and a concrete readiness gate still need target integration and cold-start verification.
 
+### Firmware-readiness predicate: 2026-10-21
+
+The readiness investigation re-downloaded the exact `fc7cbdd1791416c2457fa27a59e508bf325c9c3f`
+AIC archive, matched SHA-256 `cae09dc427fc6c4a7a1887b44612c8a30b39596fe04aeaaec66b8de6581eaa06`
+and applied the official SDIO Debian patch series. The following source chain
+provides a concrete **load-ordering predicate**, scoped to this D80 candidate:
+
+1. [`rwnx_mod_init()`](https://github.com/radxa-pkg/aic8800/blob/fc7cbdd1791416c2457fa27a59e508bf325c9c3f/src/SDIO/driver_fw/driver/aic8800/aic8800_fdrv/rwnx_main.c)
+   calls `aicbsp_set_subsys(AIC_WIFI, AIC_PWR_ON)` before host-interface registration.
+   It then waits up to 9,000 ms for `hostif_register_done`, returning `-ENODEV`
+   on completion timeout or a reported host-interface failure.
+2. [`aicbsp_set_subsys()`](https://github.com/radxa-pkg/aic8800/blob/fc7cbdd1791416c2457fa27a59e508bf325c9c3f/src/SDIO/driver_fw/driver/aic8800/aic8800_bsp/aicsdio.c)
+   holds the power mutex while initializing SDIO and calling `aicbsp_driver_fw_init()`.
+   It updates the powered-subsystem map only after success. A previously powered
+   subsystem skips repeat loading. The fallback that delegates loading to fdrv
+   is not the recognized D80 `c8a1:0082` / `c8a1:0182` path.
+3. [`aicbsp_driver_fw_init()`](https://github.com/radxa-pkg/aic8800/blob/fc7cbdd1791416c2457fa27a59e508bf325c9c3f/src/SDIO/driver_fw/driver/aic8800/aic8800_bsp/aic_bsp_driver.c)
+   sets `btenable = 1` for D80. With the audited `CONFIG_MCU_MESSAGE=n` and
+   normal work mode, it synchronously runs `aicbt_init()` before `aicwifi_init()`.
+   The BT path uploads ADID, patch and extended patch data, then writes the
+   patch table including power-on entries. Reported failures propagate back
+   through these calls. Preserve these build/mode assumptions at integration.
+4. Linux 6.12.114 [`do_init_module()` and `show_initstate()`](https://github.com/gregkh/linux/blob/85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e/kernel/module/main.c)
+   establish `/sys/module/<name>/initstate=live` after a nonnegative module-init
+   return. Directory presence alone can precede initialization. Likewise, a
+   netdev can become visible before the remaining init code completes.
+
+The host-interface completion is not a complete Wi-Fi-health guarantee:
+[`aicwf_sdio_probe()`](https://github.com/radxa-pkg/aic8800/blob/fc7cbdd1791416c2457fa27a59e508bf325c9c3f/src/SDIO/driver_fw/driver/aic8800/aic8800_fdrv/aicwf_sdio.c)
+ignores the return from `aicwf_rwnx_sdio_platform_init()` and calls
+`aicwf_hostif_ready()` before host-wake IRQ registration. Consequently, use
+both successful module initialization and the expected bound network device.
+The driver sets the netdev parent to the SDIO device through `SET_NETDEV_DEV`,
+`set_wiphy_dev()` and [`wiphy_dev()`](https://github.com/gregkh/linux/blob/85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e/include/net/cfg80211.h).
+
+Board-local `checks/aic-firmware-ready.sh` implements a read-only, one-shot
+candidate predicate: both BSP/fdrv modules must be `live`, BSP testmode and
+current cpmode must be normal work mode (0), and the selected interface must
+belong to `c8a1:0082`, bound to SDIO driver `aicwf_sdio` owned by `aic8800_fdrv`.
+Missing evidence or incomplete initialization returns failure. It does not
+load/unload modules, wait a fixed sleep, touch GPIO/UART or change radio state.
+The future startup owner must load the pinned modules synchronously, require
+this predicate, require successful bounded HCI Reset, then attach HCI and
+start BlueZ. Any failed stage stops that sequence.
+
+This is an ordering check, not firmware attestation or proof that Bluetooth
+responds. It assumes the audited source/build settings, no firmware-mode changes
+after loading, and serialized startup without concurrent power-off, removal or
+reload. It is not a generic predicate for another AIC SDK, built-in drivers,
+resume or recovery. Keep the HCI Reset response as the next independent check;
+do not use `live`, a log line or `wlan0` alone as Bluetooth readiness.
+
+Verification: 14 host tests exercise the real shell script with isolated
+sysfs-shaped files/symlinks, including early netdev visibility while either
+module is `coming`, missing evidence, removal state, wrong identity/binding,
+test modes and interface-name validation. The positive test failed before the
+script existed; a mutation removing module-init checks was rejected by the
+early-interface test. Shell syntax and whitespace checks passed.
+The recorded SSH endpoint could not be inspected noninteractively
+in this session; no new physical readiness/cold-start result is claimed and no
+board state was changed. Runtime packaging and mainline cold-start validation
+remain pending; this does not complete #5 or resolve firmware terms.
+
 ## Source findings
 
 | Component | Audited source/reference | What this establishes | Remaining verification |

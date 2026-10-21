@@ -96,3 +96,43 @@ The reference's boot reset overlapped firmware loading and timed out; establish
 firmware readiness before calling this helper and do not attach after failure.
 Mainline GPIO/pin defaults, a concrete readiness gate and Buildroot/cold-start
 verification remain pending. See the ADR for protocol references and limits.
+
+## Firmware load-ordering predicate candidate
+
+`aic-firmware-ready.sh` checks the pinned D80 SDIO candidate without changing
+radio state. Host verification needs only Python 3, a POSIX shell, `cat`, `grep`
+and `readlink -f`:
+
+```sh
+sh -n aa_wireless_dongle/board/radxa/zero3w/checks/aic-firmware-ready.sh
+python3 tests/radxa_firmware_ready_test.py
+```
+
+For a read-only check as root on a board running the audited modules, invoke
+`sh aic-firmware-ready.sh wlan0` (default interface: `wlan0`; an explicit name
+can be used for the reference OS). It requires both `aic8800_bsp` and
+`aic8800_fdrv` module `initstate` values to be `live`, normal BSP work mode,
+and an interface backed by SDIO `c8a1:0082` using `aicwf_sdio` from
+`aic8800_fdrv`. Exit status is 0 for the ordering predicate, 1 for not-ready or
+missing evidence, and 2 for invalid arguments. `RADXA_SYSFS_ROOT` redirects
+reads for host fixtures only; runtime integration must use the real `/sys`.
+
+The source chain and its limits are in ADR-0001's firmware-readiness section.
+In the audited D80 configuration, synchronous BSP loading completes BT patch
+uploads before fdrv module initialization succeeds. Module-directory presence,
+netdev presence or the driver's internal completion signal alone is weaker:
+the latter ignores a platform-init return and precedes host-wake IRQ setup.
+
+Future startup integration must serialize these stages, stopping on every error:
+
+1. Load the pinned BSP/fdrv modules synchronously with the audited build flags
+   (`CONFIG_MCU_MESSAGE=n`) and normal work mode.
+2. Require `aic-firmware-ready.sh` success.
+3. Require bounded `aic-hci-reset /dev/ttyS1` success on the unattached UART.
+4. Start hciattach, then BlueZ after attachment is established.
+
+This script takes one snapshot; it neither polls nor starts any later stage.
+It assumes startup owns module/power/mode changes. It does not establish
+firmware identity, UART response, mainline pin correctness or cold-start
+reliability. It is not installed in a runtime overlay. Fourteen fixture tests
+pass; board execution and repeated cold-start verification remain pending.
