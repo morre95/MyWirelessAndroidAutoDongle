@@ -8,6 +8,7 @@
 **Specification:** [Approved hardware-support spec, issue #4](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/4).
 **Target:** Radxa ZERO 3W, 1 GB RAM, no eMMC, microSD boot.
 **Task tracker:** GitHub Issues in `morre95/MyWirelessAndroidAutoDongle`.
+**Session handoff:** [2026-10-21 resume record](../docs/handoffs/2026-10-21-radxa-zero3w.md) records local commits, hardware state, verified checks and the open firmware inquiry.
 
 ## Overview and assumptions
 
