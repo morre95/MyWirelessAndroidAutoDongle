@@ -88,6 +88,11 @@ deadline. Normal success/error exits restore termios and release exclusive mode.
 It refuses an exclusive UART or a non-N_TTY line discipline; existing raw-TTY
 readers must still be stopped by the board startup sequence.
 
-This helper is not installed by a package or startup service and has not run on
-the Radxa. GPIO/reset/wake sequencing, firmware readiness and hciattach/BlueZ
-integration remain prerequisites. See the ADR for protocol references and limits.
+This helper is not installed by a package or startup service. One physical test
+on the Radxa OS 6.1.84 reference passed: the attached-UART guard refused access,
+the freed UART completed reset in approximately 5 ms, and hciattach/BlueZ were
+restored with identical selected GPIO levels. Temporary test files were removed.
+The reference's boot reset overlapped firmware loading and timed out; establish
+firmware readiness before calling this helper and do not attach after failure.
+Mainline GPIO/pin defaults, a concrete readiness gate and Buildroot/cold-start
+verification remain pending. See the ADR for protocol references and limits.
