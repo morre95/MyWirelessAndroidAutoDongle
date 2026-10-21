@@ -2,11 +2,11 @@
 
 ## Status
 
-Proposed. The received V1.12M board and its AIC8800D80 radio are identified, and a working Radxa OS diagnostic baseline was recorded on 2026-10-21. Final Buildroot source selection still requires kernel/driver/accessory compatibility and firmware redistribution checks. This record does not establish a working Buildroot image or complete [task #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5).
+Proposed for release; the engineering source baseline below is selected for subsequent integration as of 2026-10-21. Kernel/accessory/AIC linking, boot-chain packing and compiled-DT checks support that choice. Firmware redistribution terms remain unresolved, and the selected kernel/DT has not been booted on the board. Keep [task #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) open and retain downstream dependencies until the firmware decision and tracker review are complete. This record does not establish a working Buildroot image.
 
 ## Date
 
-2026-10-14; hardware/version evidence updated 2026-10-21.
+2026-10-14; hardware/version evidence and engineering source selection updated 2026-10-21.
 
 ## Context
 
@@ -20,7 +20,96 @@ The repository pins Buildroot 2026.02.3 at `679b9ead7620bbf193620d1ebf56f53c1764
 
 Keep Buildroot and the existing external tree. Add board-local boot/image/runtime integration and reuse the common application. Do not update the Buildroot submodule or change Pi source pins as a side effect.
 
-Build the AIC SDIO path for this hardware rather than the older AP6212 path. Radxa OS is a temporary diagnostic reference; Buildroot remains the delivered image platform. The snapshots below are **audit references and candidates, not a selected release bill of materials**. Before a defconfig is implemented, record the complete selected source combination, hashes and required patch adaptations. Matching a Debian package version to a source snapshot requires provenance evidence, not just the same kernel version number.
+Build the AIC SDIO path for this hardware rather than the older AP6212 path. Radxa OS is a temporary diagnostic reference; Buildroot remains the delivered image platform. The selected engineering baseline is recorded below; the later source-findings table preserves the earlier audit references. Matching a Debian package version to a source snapshot requires provenance evidence, not just the same kernel version number.
+
+## Selected engineering source baseline: 2026-10-21
+
+Use this combination for the V1.12M, 1 GB, no-eMMC AIC8800D80 target when the
+remaining task #5 prerequisite is resolved. Selection fixes the inputs for
+integration; it does not approve firmware distribution or hardware acceptance.
+Existing Pi source pins and the Buildroot submodule remain unchanged.
+
+| Component | Selected immutable input | Verification and scope |
+| --- | --- | --- |
+| Build system | Buildroot 2026.02.3, commit `679b9ead7620bbf193620d1ebf56f53c1764d37a` | Retained repository baseline; no Buildroot update required by the checks |
+| Bootloader | U-Boot 2026.01, commit `127a42c7257a6ffbbd1575ed1cbaa8f5408a44b3`, release archive `u-boot-2026.01.tar.bz2`; `radxa-zero-3-rk3566_defconfig` | Isolated ARM64 build and packing pass; physical DDR training and boot pending |
+| DDR / BL31 | rkbin commit `f43a462e7a1429a9d407ae52b4745033034a6cf9`; `bin/rk35/rk3566_ddr_1056MHz_v1.23.bin` and `bin/rk35/rk3568_bl31_v1.44.elf` | Exact blobs verified inside the packed bootloader; retain rkbin notices; OP-TEE not selected |
+| Kernel | Linux 6.12.114, commit `85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e`, release archive `linux-6.12.114.tar.xz` | Full ARM64 Image and modules link, including accessory/composite and external AIC modules |
+| Linux device tree | The same Linux input plus the board patches below; `rockchip/rk3566-radxa-zero-3w-aic8800d80.dtb` | AIC-only DT compiles and six compiled-property tests pass; generic DT unchanged; full schema and physical validation pending |
+| Radio driver | Radxa AIC tag `4.0+git20241119.06da8476-1`, commit `fc7cbdd1791416c2457fa27a59e508bf325c9c3f`; `src/SDIO/driver_fw/driver/aic8800` plus the patch series below | All three modules link; selected startup path uses BSP/fdrv without loading btlpm, matching the reference path |
+| Radio firmware/configuration | Only the six D80 files listed under [Firmware observed loading](#firmware-observed-loading), from that same AIC commit | All six SHA-256 values match the working reference card; selection remains subject to clarification of redistribution/source obligations |
+
+Use the source/archive hashes in [ARM64 compilation](#arm64-compilation-slice)
+and [Boot-chain build and packing](#boot-chain-build-and-packing), together with
+the six firmware hashes in the firmware table. Buildroot's checked-in `rockchip-rkbin.hash`
+additionally pins source archive SHA-256
+`4a70cdc877600b75c0a885a8ebe1aa68f0800a0010aa580c105cbd9386140fa7`.
+That hash applies to Buildroot's generated
+`rockchip-rkbin-f43a462e7a1429a9d407ae52b4745033034a6cf9-git4.tar.gz`,
+not to a GitHub-generated tarball. Generated Image/DTB/bootloader hashes identify
+particular build outputs and do not replace download verification. Mandatory
+download checking must remain enabled when the shipping target is added.
+
+### Required patches and startup contract
+
+The repository patch set at commit `2247ca3` defines the selected adaptations.
+Paths below are relative to `aa_wireless_dongle/`; apply each list in order.
+
+1. Linux: shared `patches/linux/0001-Backport-and-apply-patches-for-Android-Accessory-mod.patch`,
+   then `0002-Remove-cyclic-dependency-between-f_accessory-and-lib.patch` in the
+   same directory. These provide the required accessory function and uevents.
+2. Linux: `board/radxa/zero3w/patches/linux/0003-Pass-HID-buffer-size-for-Linux-6.12.114.patch`,
+   then `0004-Add-V1.12M-AIC8800D80-device-tree.patch`, then
+   `0005-Set-AIC-Bluetooth-GPIO-defaults.patch` in that directory. These supply
+   the 6.12.114 HID API correction and the board-specific DT/pin defaults.
+3. AIC: apply the SDIO portions of the pinned archive's `debian/patches/series`
+   in listed order, then
+   `board/radxa/zero3w/patches/aic8800/0001-Handle-monitor-callback-in-Linux-6.12.114.patch`
+   and `0002-Use-strict-RX-preallocation-prototypes.patch` in that directory.
+   Preserve the upstream packaging fixes; the raw imported SDK alone is not
+   the checked source combination. Reproduction commands appear below.
+
+Runtime integration must preserve normal BSP work mode, `CONFIG_MCU_MESSAGE=n`,
+`CONFIG_PLATFORM_ROCKCHIP=n`, `CONFIG_PLATFORM_ROCKCHIP2=n`,
+`CONFIG_GPIO_WAKEUP=n` and `AICBT_LPM_ENABLE_DEFAULT=0` from the audited path.
+Load BSP/fdrv synchronously, require the `aic-firmware-ready.sh` predicate,
+require successful bounded `aic-hci-reset /dev/ttyS1`, attach at
+1.5 Mbaud/RTS-CTS, then start BlueZ after attachment is established. Stop on
+failure; a fixed sleep is not the readiness contract. The helpers are in
+`board/radxa/zero3w/checks/` at the repository commit above and are not yet
+installed by a runtime package. Do not install the factory TCP test server or
+automatically load `aic8800_btlpm`. Userspace package integration belongs to
+later tasks; Debian's installed BlueZ/rsetup versions are diagnostic references.
+
+### Why this combination and what remains unproven
+
+Choose the upstream kernel/bootloader route because the required board support
+exists, the accessory adaptations and radio modules pass full linking, and the
+boot chain builds with the existing Buildroot/rkbin pins. This keeps the Pi
+patch path and baseline intact. The AIC source is selected for its demonstrated
+firmware provenance and compatibility, rather than replacing it with the newer,
+unverified audit snapshot. The vendor kernel/BSP remains a fallback if physical
+integration exposes a missing mainline capability; switching requires a new
+source/patch compatibility assessment and an explicit update to this decision.
+
+| Required capability | Evidence supporting the choice | Physical verification still required |
+| --- | --- | --- |
+| MicroSD boot | Reference Radxa OS boots the actual no-eMMC board; selected U-Boot/DDR/BL31 builds and packs; kernel/DT contain microSD support | Boot selected components and the Buildroot partition/mount layout (#7–#8) |
+| Android accessory and uevents | Both shared patches plus the HID correction compile/link on the selected kernel; source contains `ACCESSORY=START` and gadget-state uevents | Peripheral-role binding, enumeration, negotiation and actual uevent delivery (#9) |
+| Wi-Fi AP | Pinned driver exposes AP operations; the reference advertises AP/AP-VLAN and operates as a Wi-Fi client | Selected driver/firmware on mainline, hostapd operation, channels and coexistence (#10–#12) |
+| Bluetooth | Exact firmware match; bounded reset/reattach and the corrected firmware-ready → reset → hciattach → BlueZ cold-start experiment passed on Radxa OS | Mainline GPIO acquisition, SDIO/UART startup, pairing and AP coexistence (#10–#12) |
+
+The GPIO defaults are compiled requests, not measured mainline electrical
+behavior; wake IRQ/suspend support and slew-rate equivalence are not established.
+A controlled matching-kernel/DT boot with recovery can reduce feasibility risk,
+but complete image assembly and physical acceptance belong to the later tasks.
+Task #5 requires a source decision with evidence limits, not a completed dongle.
+Its remaining external blocker is the selected firmware's terms, tracked in
+[radxa-pkg/aic8800#109](https://github.com/radxa-pkg/aic8800/issues/109).
+Resolve those terms and reconcile this decision with #5 before marking the ADR
+Accepted or releasing downstream prerequisites. If the answer prevents using
+these files, reopen the radio/firmware choice instead of treating this baseline
+as an unconditional release bill of materials.
 
 ## Physical diagnostic baseline: 2026-10-21
 
@@ -294,6 +383,10 @@ Task #5 and firmware terms remain unresolved.
 
 ## Source findings
 
+This table preserves the initial audit references and the questions at that
+stage. The selected baseline above and the subsequent build results take
+precedence over these historical candidates and remaining-verification entries.
+
 | Component | Audited source/reference | What this establishes | Remaining verification |
 | --- | --- | --- | --- |
 | U-Boot | [v2026.01](https://github.com/u-boot/u-boot/tree/v2026.01), commit `127a42c7257a6ffbbd1575ed1cbaa8f5408a44b3` | Includes `radxa-zero-3-rk3566_defconfig`, default ZERO 3W DT and ZERO 3W/3E SPL DT list | Build with the chosen BL31/DDR components and boot the actual 1 GB no-eMMC board |
@@ -335,7 +428,7 @@ The checked-out Armbian firmware package sets `ARMBIAN_FIRMWARE_REDISTRIBUTE = N
 
 ### Mainline bootloader/kernel plus the appropriate radio package
 
-Preferred candidate to evaluate because upstream ZERO 3 boot configuration and DT exist, and board-local configuration fits the current external tree. Radio and accessory compatibility remain explicit integration work; source presence does not guarantee operation.
+Selected engineering route following the full linking, boot-chain and DT checks recorded below. Upstream ZERO 3 boot configuration and DT exist, and board-local configuration fits the current external tree. Physical radio and accessory operation remain explicit integration checks; source presence does not guarantee operation.
 
 ### Radxa vendor bootloader/kernel source through the official BSP
 
@@ -547,12 +640,19 @@ The checked-in configuration matches the experiment's input. Buildroot's `check-
 
 ## Consequences and next evidence
 
-- Source research can proceed now, but task #5 stays open. Dependent tasks retain their tracker prerequisites.
-- PCB V1.12M and AIC8800D80 identification are resolved. Complete the compatible source/firmware selection using the recorded baseline and source checks.
-- Verify accessory patch/configuration compatibility and the selected radio build before promoting this ADR to Accepted.
+- Use the selected engineering baseline and patch order above for subsequent integration. Task #5 stays open pending firmware terms and tracker review; dependent tasks retain their prerequisites.
+- PCB V1.12M and AIC8800D80 identification, source/link compatibility, boot-chain packing and compiled-DT checks support the engineering choice. They do not establish operation of the selected kernel/DT on hardware.
+- Resolve the six firmware files' redistribution/source obligations before promoting this ADR to Accepted. Change the selected firmware/source baseline explicitly if the answer requires it.
 - MicroSD boot, AP/Bluetooth coexistence, USB enumeration/negotiation, power and connection reliability remain physical acceptance checks in subsequent tasks.
 - Do not publish a supported image or close hardware criteria based on this source investigation.
 
 ## Verification performed
 
 On 2026-10-14, checked the existing Buildroot version and Pi source/patch configuration using task #5's commands and inspected the cited source snapshots. On 2026-10-21, collected the physical diagnostic evidence above, resolved the AIC package tag, matched all six loaded firmware/configuration files against that source, performed vendor/upstream accessory patch checks and reproduced/fixed the three ARM64 object-compilation failures above. The follow-up passed full kernel/module linking, built and inspected the isolated U-Boot/DDR/BL31 combination, and recorded the live radio pins and Bluetooth reset sequence. No complete Buildroot target image or car-operation result is established by these checks.
+
+The source-selection documentation follow-up cross-checked the retained
+Buildroot commit, board-local boot-chain configuration, existing patch filenames
+and rkbin source/hash metadata. Fresh SHA-256 reads of the available Linux
+archive, DDR/BL31 inputs and latest AIC DTB matched the values already recorded
+above. No source, build configuration or board state changed in this follow-up;
+the earlier build and physical evidence retains its original scope.
