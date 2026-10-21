@@ -1,6 +1,9 @@
 # Implementation plan: Radxa ZERO 3W support
 
-**Status:** Draft for owner review (Phase 2: Plan).
+**Status:** Approved by the owner on 2026-10-14 (Phase 2: Plan).
+**Plan approval:** Owner confirmed: "ja jag godkänner planen".
+**Task breakdown:** Approved by the owner on 2026-10-14: "ja jag godkänner uppgiftslistan".
+**Execution:** Phase 4 continues with task #5. The received V1.12M/AIC8800D80 board boots the official Radxa OS diagnostic image; exact versions, firmware hashes and first source-compatibility results are recorded in ADR-0001. Final Buildroot source selection remains in progress.
 **Date:** 2026-10-14
 **Specification:** [Approved hardware-support spec, issue #4](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/4).
 **Target:** Radxa ZERO 3W, 1 GB RAM, no eMMC, microSD boot.
@@ -12,11 +15,11 @@ Deliver a ready-to-flash microSD image for the owner's board, retain all five ex
 
 The specification has been approved. Its acceptance requirements include 10 cold starts, five power reconnects, an under-30-second subsequent connection and a 30-minute session. eMMC support and tests are deferred.
 
-RAM and absence of eMMC are confirmed; PCB revision, wireless module, phone/headunit baseline and final cost accounting remain unresolved. This plan defines investigation and verification points rather than inventing a kernel or firmware selection.
+RAM and absence of eMMC are confirmed. On 2026-10-21 the owner identified PCB revision V1.12M, and runtime SDIO/kernel evidence identified AIC8800D80 (the DT variant is `aic8800ds2`). Phone/headunit baseline and final cost accounting remain unresolved. This plan defines investigation and verification points rather than inventing a kernel or firmware selection.
 
-Phase 3 will create implementable tasks in GitHub Issues after this plan is approved. Do not create `tasks/todo.md`: the project uses the external tracker. Phase 4 begins only after the task breakdown is reviewed. No code changes are part of this planning delivery.
+The owner has approved the Phase 3 implementation task breakdown in GitHub Issues. Do not create `tasks/todo.md`: the project uses the external tracker. Phase 4 may proceed in dependency order. Source research and physical reference versions for #5 are recorded in `docs/adr/0001-radxa-zero3w-platform.md`; final platform selection awaits the remaining kernel/radio/accessory compatibility and firmware redistribution checks.
 
-## Proposed architecture
+## Approved architecture
 
 ### Continue using the existing Buildroot external tree
 
@@ -58,7 +61,7 @@ The existing accessory patches were rebased to the Pi 6.12 kernel. Verify compat
 
 Build order: **A → B → C/D → E → F → G**.
 
-This is a sequence of user-visible verification slices, not separate product modules. Task breakdown will split stages where changes exceed five files or a focused session, especially boot construction and radio packaging.
+This is a sequence of user-visible verification slices, not separate product modules. The linked task breakdown splits boot construction, driver packaging, firmware packaging and hardware verification into focused slices. If the resolved source choice needs more than five files in a task, split the prerequisite before implementation.
 
 ## Verification checkpoints
 
@@ -135,9 +138,27 @@ Task-specific checks will include image contents, hashes and the selected kernel
 
 ## Task-list index
 
-**Canonical task list: GitHub Issues.** Issue #4 is the parent specification. No implementation task issues have been created in this Phase 2 draft.
+**Canonical task list: GitHub Issues.** Issue #4 is the parent specification. The 13 approved tasks are native GitHub sub-issues, with native blocked-by dependencies and standard triage labels recording readiness or missing information.
 
-After plan approval, Phase 3 will populate this section with ordered tracker links for the implementation slices and their dependencies. Each issue will contain acceptance criteria, executable verification where applicable, likely files (at most approximately five), and spec AC references. Checkpoints will remain in this plan or be linked as tracker items; avoid duplicating task state in a local checklist.
+| Order | Stage | Task | Blocked by |
+| --- | --- | --- | --- |
+| 1 | A | [#5: Radxa: identify the board and select pinned platform sources](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) | — |
+| 2 | B | [#6: Radxa: isolate Raspberry Pi driver initialization](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/6) | [#5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) |
+| 3 | B | [#7: Radxa: build the pinned kernel and boot components](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/7) | [#5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5), [#6](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/6) |
+| 4 | B | [#8: Radxa: generate a bootable microSD image](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/8) | [#7](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/7) |
+| 5 | C | [#9: Radxa: enable and verify the Android accessory USB path](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/9) | [#8](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/8) |
+| 6 | D | [#10: Radxa: package the selected wireless driver](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/10) | [#7](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/7) |
+| 7 | D | [#11: Radxa: include redistributable wireless firmware](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/11) | [#10](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/10) |
+| 8 | D | [#12: Radxa: start onboard Wi-Fi AP and Bluetooth pairing](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/12) | [#8](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/8), [#11](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/11) |
+| 9 | E | [#13: Radxa: verify the complete first-use and reconnection flow](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/13) | [#9](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/9), [#12](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/12) |
+| 10 | F | [#14: Radxa: add the image to Compose, CI and release packaging](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/14) | [#13](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/13) |
+| 11 | G | [#15: Radxa: document installation, board additions and hardware cost](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/15) | [#13](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/13), [#14](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/14) |
+| 12 | G | [#16: Radxa: complete physical acceptance and Raspberry Pi regression checks](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/16) | [#15](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/15) |
+| 13 | G | [#17: Radxa: verify the public release image and download path](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/17) | [#16](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/16) |
+
+Each approved issue contains acceptance criteria, verification, likely files, estimated scope and spec references. Task state lives in GitHub; this table is an index, not a second checklist.
+
+Checkpoints follow platform selection (#5), fresh-card boot (#6–#8), kernel/radio packaging (#9–#11), required interfaces (#12), complete user flow (#13), and final distribution/physical acceptance (#14–#17). At each checkpoint, record completed results, unresolved failures and affected regressions before proceeding.
 
 ## Risks and mitigations
 
@@ -148,7 +169,7 @@ After plan approval, Phase 3 will populate this section with ordered tracker lin
 | OTG power from the car is insufficient | Resets or additional hardware outside the intended installation | Test power-on and sustained operation on the actual headunit; record setup and revisit requirements if needed |
 | Pi assumptions leak into common initialization or mounts | New board fails or existing Pi support regresses | Board-local overlays/hooks, targeted shared changes, Pi build and physical smoke evidence |
 | Release step still selects Pi-only assets | Radxa users cannot download the image | Explicit CI/release integration check and final asset URL/checksum verification |
-| Hardware has not arrived | Physical acceptance cannot finish | Continue source/build preparation; keep physical checkpoints pending |
+| A working Radxa OS baseline is mistaken for a completed port | Buildroot boot or dongle behavior remains untested | Keep diagnostic versions separate from selected Buildroot sources and record acceptance on the actual candidate image |
 | Actual hardware/timing/cost misses spec | Quietly weakened requirements | Record the result, identify cause and update the spec through review before accepting a different target |
 
 ## Sequencing and independent work
@@ -159,7 +180,7 @@ CI packaging/documentation can be prepared after the artifact contract is fixed.
 
 ## Remaining questions
 
-- PCB revision and radio module of the ordered board.
+- Complete source provenance/pins, AIC compatibility and firmware redistribution terms; PCB V1.12M and AIC8800D80 are now identified.
 - Phone/Android version, headunit/car and an existing Pi available for the comparison/smoke test.
 - Whether the approximately SEK 400 target includes shipping/VAT and which microSD/data-cable costs must be newly incurred.
 
@@ -167,7 +188,16 @@ Bootloader/kernel/device-tree/radio versions and image layout are engineering de
 
 ## Sources and approval boundary
 
-Architecture proposals follow the approved [specification](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/4), the existing repository build/runtime paths and the official [Buildroot external-tree documentation](https://buildroot.org/downloads/manual/manual.html). Revision, port and power investigation follows the [Radxa hardware guide](https://docs.radxa.com/en/zero/zero3/hardware-design/hardware-interface) and [FAQ](https://docs.radxa.com/en/zero/zero3/faq).
+The approved architecture follows the approved [specification](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/4), the existing repository build/runtime paths and the official [Buildroot external-tree documentation](https://buildroot.org/downloads/manual/manual.html). Revision, port and power investigation follows the [Radxa hardware guide](https://docs.radxa.com/en/zero/zero3/hardware-design/hardware-interface) and [FAQ](https://docs.radxa.com/en/zero/zero3/faq).
 
-This plan is the Phase 2 review artifact. Owner approval of the spec does not by itself approve this plan, select unresolved platform sources, or authorize starting implementation before the subsequent workflow gates.
+The owner has approved the specification, Phase 2 plan and Phase 3 task breakdown. Phase 4 is authorized in dependency order. These approvals do not select unresolved platform sources or mark hardware acceptance complete. Task #5 remains open pending final source selection; PCB/radio identification is resolved.
 
+## Execution evidence: 2026-10-21
+
+The owner requested version documentation and continuation to the next step. ADR-0001 now records the official diagnostic image/checksums, kernel/U-Boot/AIC/BlueZ/rsetup versions, owner-read PCB revision and hashes of the firmware actually loaded. MicroSD boot, Wi-Fi client operation and a powered Bluetooth controller are observed; AP operation, pairing and accessory negotiation remain pending.
+
+The next source-compatibility slice checked the existing accessory patches against the vendor 6.1.84 snapshot and maintained upstream 6.12.114. The vendor already contains partial uevent integration and rejects the Pi patch; both patches apply in order to the upstream candidate. The installed AIC package maps to source commit `fc7cbdd1791416c2457fa27a59e508bf325c9c3f`, whose six relevant firmware/configuration files match the board. These findings guide the first compatibility build; they do not complete #5 or bypass #6's prerequisite.
+
+The follow-on ARM64 object build used LLVM 23.1.3 and the verified 6.12.114/AIC archives. It exposed and reproduced a changed HID argument list, the backported cfg80211 monitor callback signature, and two strict-prototype errors. Three board-scoped patches now correct these failures. USB composite/accessory and the three AIC aggregate objects compile as ARM aarch64 ELF files; the existing host regression test passes. ADR-0001 records hashes, patch order and reproduction commands. These preparation patches are not connected to an active defconfig; full linking, target DT/boot-chain integration and firmware redistribution verification remain prerequisites to finishing #5 and proceeding to #6.
+
+The next slice completed full Linux 6.12.114 `Image`, modules and upstream ZERO 3W DT compilation, then linked the three AIC `.ko` files against the generated symbol table with MODPOST errors enabled. All five accessory/composite/AIC modules are ARM64 with matching vermagic. An isolated board-local check also built U-Boot 2026.01 with Buildroot's existing rkbin pin, RK3566 DDR 1.23 and RK3568 BL31 1.44. Packed-image checks verified the DDR/SPL/header hashes, FIT placement and all six BL31 load segments. The configuration and reproduction commands are saved under `board/radxa/zero3w/checks/`; they are not a shipping target. Live DT reads confirmed the recorded radio/antenna pins, and the installed startup scripts exposed a bounded UART HCI reset before `hciattach`. ADR-0001 records the results and limits. No SD card was flashed. AIC-specific DT/runtime integration, firmware terms, full image assembly and physical operation remain pending; #5 stays open and #6 retains its prerequisite.

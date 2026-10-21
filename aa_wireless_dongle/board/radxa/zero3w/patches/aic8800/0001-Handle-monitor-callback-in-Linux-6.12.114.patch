@@ -1,0 +1,43 @@
+From: MyWirelessAndroidAutoDongle contributors
+Subject: [PATCH] aic8800: handle monitor callback backport in Linux 6.12.114
+
+Linux 6.12.114 has the three-argument set_monitor_channel callback. The
+baseline SDK with Radxa's Debian patch series enables that API only for
+6.13 and newer, so its cfg80211_ops initializer fails ARM64 compilation.
+
+Enable the existing three-argument path for the pinned kernel candidate,
+including both internal callers. Apply after the official Debian series
+from fc7cbdd1791416c2457fa27a59e508bf325c9c3f; this is not a claim of
+compatibility with other vendor kernels or older LTS branches.
+
+Source: https://github.com/gregkh/linux/blob/85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e/include/net/cfg80211.h
+---
+--- a/src/SDIO/driver_fw/driver/aic8800/aic8800_fdrv/rwnx_main.c
++++ b/src/SDIO/driver_fw/driver/aic8800/aic8800_fdrv/rwnx_main.c
+@@ -3448,7 +3448,7 @@
+  * configured at firmware level.
+  */
+ static int rwnx_cfg80211_set_monitor_channel(struct wiphy *wiphy,
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION (6, 13, 0)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION (6, 12, 114)
+ 											 struct net_device *,
+ #endif
+ 											 struct cfg80211_chan_def *chandef)
+@@ -3505,7 +3505,7 @@
+ 
+ int rwnx_cfg80211_set_monitor_channel_(struct wiphy *wiphy,
+                                              struct cfg80211_chan_def *chandef){
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION (6, 13, 0)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION (6, 12, 114)
+     return rwnx_cfg80211_set_monitor_channel(wiphy, NULL, chandef);
+ #else
+     return rwnx_cfg80211_set_monitor_channel(wiphy, chandef);
+@@ -3931,7 +3931,7 @@
+ 
+ 	if (rwnx_vif->vif_index == rwnx_hw->monitor_vif) {
+ 		//retrieve channel from firmware
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION (6, 13, 0)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION (6, 12, 114)
+ 		rwnx_cfg80211_set_monitor_channel(wiphy, NULL, NULL);
+ #else
+ 		rwnx_cfg80211_set_monitor_channel(wiphy, NULL);

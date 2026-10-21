@@ -1,0 +1,30 @@
+From: MyWirelessAndroidAutoDongle contributors
+Subject: [PATCH] aic8800: give RX preallocation definitions strict prototypes
+
+Clang 23 rejects the two empty parameter lists under the kernel's
+-Werror=strict-prototypes check. Match the existing (void) declarations
+in aicwf_rx_prealloc.h without changing behavior or disabling diagnostics.
+
+Apply to the fc7cbdd1791416c2457fa27a59e508bf325c9c3f SDK after Radxa's
+Debian patch series and the scoped monitor callback compatibility patch.
+---
+--- a/src/SDIO/driver_fw/driver/aic8800/aic8800_fdrv/aicwf_rx_prealloc.c
++++ b/src/SDIO/driver_fw/driver/aic8800/aic8800_fdrv/aicwf_rx_prealloc.c
+@@ -49,7 +49,7 @@
+     spin_unlock_irqrestore(lock, flags);
+ }
+ 
+-int aicwf_prealloc_init()
++int aicwf_prealloc_init(void)
+ {
+     struct rx_buff *rxbuff;
+     int i = 0;
+@@ -79,7 +79,7 @@
+     return 0;
+ }
+ 
+-void aicwf_prealloc_exit()
++void aicwf_prealloc_exit(void)
+ {
+     struct rx_buff *rxbuff;
+     struct rx_buff *pos;
