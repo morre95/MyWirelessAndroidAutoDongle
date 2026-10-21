@@ -61,3 +61,33 @@ board, antenna GPIO and AIC SDIO settings. It retains upstream UART flow control
 and USB OTG mode; Bluetooth reset/wake handling remains a runtime prerequisite.
 Compilation and compiled-property checks are recorded in the ADR. This target
 has not been booted and does not replace the generic upstream ZERO 3W DT.
+
+## Bounded Bluetooth UART reset candidate
+
+The standalone `aic-hci-reset.c` helper prepares the reset step observed in
+Radxa OS without the factory tool's TCP server. Build and test on a Linux host:
+
+```sh
+cc -std=c11 -Wall -Wextra -Werror -Wconversion -Wshadow \
+    aa_wireless_dongle/board/radxa/zero3w/checks/aic-hci-reset.c \
+    -o /tmp/radxa-hci-reset
+python3 tests/radxa_hci_reset_test.py
+```
+
+The tests use pseudo-terminals, not the physical board. They check actual serial
+configuration, transmitted bytes, fragmented/maximum-length/unrelated events,
+controller rejection, malformed input, fixed timeout, TTY restoration and
+exclusive-device/file rejection. `RADXA_HCI_RESET_BIN` can select another host
+binary. Cross-compile the C source with the target toolchain for an ARM64 build.
+
+The candidate invocation on the board is `aic-hci-reset /dev/ttyS1`, **after**
+radio power/firmware setup and **before** `hciattach`. It configures 1.5 Mbaud,
+8N1 and RTS/CTS, disables software flow control, sends one H4 HCI Reset and
+requires a successful matching Command Complete within a fixed two-second I/O
+deadline. Normal success/error exits restore termios and release exclusive mode.
+It refuses an exclusive UART or a non-N_TTY line discipline; existing raw-TTY
+readers must still be stopped by the board startup sequence.
+
+This helper is not installed by a package or startup service and has not run on
+the Radxa. GPIO/reset/wake sequencing, firmware readiness and hciattach/BlueZ
+integration remain prerequisites. See the ADR for protocol references and limits.
