@@ -20,7 +20,8 @@ class FirmwareReadyTests(unittest.TestCase):
         self.write("module/aic8800_bsp/initstate", "live\n")
         self.write("module/aic8800_fdrv/initstate", "live\n")
         self.write("module/aic8800_bsp/parameters/testmode", "0\n")
-        self.write("devices/platform/aic-bsp/cpmode",
+        # aicbsp_attribute_group.name places this attribute under aicbsp_info.
+        self.write("devices/platform/aic-bsp/aicbsp_info/cpmode",
                    "Support mode value:\n  0: work\nCurrent: 0, firmware info:\n")
         self.device = self.root / "devices/mmc_host/mmc1/mmc1:0001/mmc1:0001:1"
         self.device.mkdir(parents=True)
@@ -28,7 +29,7 @@ class FirmwareReadyTests(unittest.TestCase):
         self.write(self.device / "device", "0x0082\n")
         driver = self.root / "bus/sdio/drivers/aicwf_sdio"
         driver.mkdir(parents=True)
-        (driver / "module").symlink_to(self.root / "module/aic8800_fdrv")
+        # The vendor 6.1 kernel and this SDK leave drv.owner unset: no link.
         (self.device / "driver").symlink_to(driver)
         netdev = self.device / "net/wlan0"
         netdev.mkdir(parents=True)
@@ -101,19 +102,33 @@ class FirmwareReadyTests(unittest.TestCase):
 
     def test_driver_from_wrong_module_is_not_ready(self):
         module = self.root / "bus/sdio/drivers/aicwf_sdio/module"
-        module.unlink()
         module.symlink_to(self.root / "module/aic8800_bsp")
+        self.assert_not_ready()
+
+    def test_matching_owner_link_is_ready(self):
+        module = self.root / "bus/sdio/drivers/aicwf_sdio/module"
+        module.symlink_to(self.root / "module/aic8800_fdrv")
+        self.assertEqual(self.run_gate().returncode, 0)
+
+    def test_dangling_owner_link_is_not_ready(self):
+        module = self.root / "bus/sdio/drivers/aicwf_sdio/module"
+        module.symlink_to(self.root / "module/missing")
         self.assert_not_ready()
 
     def test_non_work_firmware_modes_are_not_ready(self):
         self.write("module/aic8800_bsp/parameters/testmode", "4\n")
         self.assert_not_ready()
         self.write("module/aic8800_bsp/parameters/testmode", "0\n")
-        self.write("devices/platform/aic-bsp/cpmode", "Current: 4, firmware info:\n")
+        self.write("devices/platform/aic-bsp/aicbsp_info/cpmode", "Current: 4, firmware info:\n")
         self.assert_not_ready()
 
     def test_missing_mode_evidence_is_not_ready(self):
-        (self.root / "devices/platform/aic-bsp/cpmode").unlink()
+        (self.root / "devices/platform/aic-bsp/aicbsp_info/cpmode").unlink()
+        self.assert_not_ready()
+
+    def test_ungrouped_mode_attribute_is_not_readiness_evidence(self):
+        (self.root / "devices/platform/aic-bsp/aicbsp_info/cpmode").unlink()
+        self.write("devices/platform/aic-bsp/cpmode", "Current: 0, firmware info:\n")
         self.assert_not_ready()
 
     def test_explicit_interface_name(self):

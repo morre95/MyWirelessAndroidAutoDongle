@@ -162,7 +162,9 @@ The driver sets the netdev parent to the SDIO device through `SET_NETDEV_DEV`,
 Board-local `checks/aic-firmware-ready.sh` implements a read-only, one-shot
 candidate predicate: both BSP/fdrv modules must be `live`, BSP testmode and
 current cpmode must be normal work mode (0), and the selected interface must
-belong to `c8a1:0082`, bound to SDIO driver `aicwf_sdio` owned by `aic8800_fdrv`.
+belong to `c8a1:0082`, bound to SDIO driver `aicwf_sdio`. Any exposed driver
+module-owner link must point to `aic8800_fdrv`; the vendor 6.1 kernel/SDK
+does not expose that link (see the physical follow-up below).
 Missing evidence or incomplete initialization returns failure. It does not
 load/unload modules, wait a fixed sleep, touch GPIO/UART or change radio state.
 The future startup owner must load the pinned modules synchronously, require
@@ -176,16 +178,54 @@ reload. It is not a generic predicate for another AIC SDK, built-in drivers,
 resume or recovery. Keep the HCI Reset response as the next independent check;
 do not use `live`, a log line or `wlan0` alone as Bluetooth readiness.
 
-Verification: 14 host tests exercise the real shell script with isolated
+Verification: 17 host tests exercise the real shell script with isolated
 sysfs-shaped files/symlinks, including early netdev visibility while either
 module is `coming`, missing evidence, removal state, wrong identity/binding,
 test modes and interface-name validation. The positive test failed before the
 script existed; a mutation removing module-init checks was rejected by the
 early-interface test. Shell syntax and whitespace checks passed.
-The recorded SSH endpoint could not be inspected noninteractively
-in this session; no new physical readiness/cold-start result is claimed and no
-board state was changed. Runtime packaging and mainline cold-start validation
+The initial source-only session could not inspect the recorded SSH endpoint
+noninteractively; the subsequent physical follow-up is recorded below.
+Runtime packaging and mainline cold-start validation
 remain pending; this does not complete #5 or resolve firmware terms.
+
+### Physical readiness-predicate follow-up: 2026-10-21
+
+After the owner confirmed SSH access, the exact tracked shell script was copied
+to a private temporary directory on the unchanged Radxa OS reference, Linux
+`6.1.84-10-rk2410-nocsf`, and invoked as root. The initial checks exposed two
+incorrect fixture assumptions:
+
+- The BSP mode attribute is under `aic-bsp/aicbsp_info/cpmode`, not directly
+  under `aic-bsp`. The pinned AIC `aicbsp_attribute_group.name` is
+  `aicbsp_info`; the real attribute reported normal work mode (0). Correcting
+  the fixture reproduced the failure before the shell path was fixed.
+- The SDIO driver has no `module` symlink on this reference. The pinned SDK
+  leaves `sdio_driver.drv.owner` unset, and the audited vendor
+  [`sdio_register_driver()`](https://github.com/radxa/kernel/blob/fd366906451692033f1ba273e77e7e2f936c78db/drivers/mmc/core/sdio_bus.c)
+  does not supply an owner. In contrast, Linux 6.12.114's
+  [`__sdio_register_driver()`](https://github.com/gregkh/linux/blob/85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e/drivers/mmc/core/sdio_bus.c)
+  sets the owner passed by its `THIS_MODULE` macro. The predicate now permits
+  an absent link and rejects incorrect or dangling links when exposed. It
+  still requires both modules to be `live` and the correct D80 driver binding;
+  source provenance remains a precondition, not something this predicate proves.
+
+After these corrections, all **17** host tests passed. Fixtures cover the real
+grouped mode path, missing mode evidence even if an ungrouped attribute exists,
+and absent/matching/incorrect/dangling owner links. Positive tests failed before
+each fix. The corrected script had identical host/board SHA-256
+`2e25e494c5d7007c8e93a0c79c745f5816a5a3c7020725033c949eb6272a5e24`.
+The physical result was `AIC firmware load ordering ready: wlan0`, exit **0**;
+an explicit nonexistent interface was rejected with exit **1**. Both modules
+were `live`, BSP testmode/current mode were 0, and `wlan0` was backed by SDIO
+`c8a1:0082` using `aicwf_sdio`.
+
+Bluetooth and `rsetup-hciattach@ttyS1` remained active. The temporary script and
+directory were removed. No module, GPIO, UART, service, firmware, DT or boot
+configuration was changed; no credentials or private endpoint were saved in Git.
+This verifies one post-boot status snapshot on the vendor reference. It does
+not establish startup timing, reset/attach ordering, mainline operation,
+pairing, AP coexistence or cold-start acceptance. Keep #5 open.
 
 ## Source findings
 

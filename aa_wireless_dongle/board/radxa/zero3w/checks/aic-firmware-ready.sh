@@ -33,7 +33,7 @@ for module in aic8800_bsp aic8800_fdrv; do
 done
 
 expect_value "$sysfs/module/aic8800_bsp/parameters/testmode" 0
-grep -q '^Current: 0, firmware info:$' "$sysfs/devices/platform/aic-bsp/cpmode" \
+grep -q '^Current: 0, firmware info:$' "$sysfs/devices/platform/aic-bsp/aicbsp_info/cpmode" \
     2>/dev/null || not_ready 'BSP must report normal work mode'
 
 device=$sysfs/class/net/$interface/device
@@ -46,9 +46,13 @@ expected=$(readlink -f "$sysfs/bus/sdio/drivers/aicwf_sdio") || \
 [ -d "$driver" ] && [ "$driver" = "$expected" ] || \
     not_ready 'interface must use aicwf_sdio'
 
-owner=$(readlink -f "$device/driver/module") || not_ready 'no driver module'
-expected=$(readlink -f "$sysfs/module/aic8800_fdrv") || not_ready 'no fdrv module'
-[ "$owner" = "$expected" ] || not_ready 'SDIO driver must belong to aic8800_fdrv'
+# Vendor 6.1 does not set the SDIO driver owner; 6.12 sets it automatically.
+# Validate ownership when exposed; source provenance remains a prerequisite.
+if [ -e "$device/driver/module" ] || [ -L "$device/driver/module" ]; then
+    owner=$(readlink -f "$device/driver/module") || not_ready 'invalid driver module'
+    expected=$(readlink -f "$sysfs/module/aic8800_fdrv") || not_ready 'no fdrv module'
+    [ "$owner" = "$expected" ] || not_ready 'SDIO driver must belong to aic8800_fdrv'
+fi
 
 # This does not replace a successful HCI Reset or protect against later removal.
 printf 'AIC firmware load ordering ready: %s\n' "$interface"

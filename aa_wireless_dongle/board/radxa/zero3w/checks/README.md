@@ -112,9 +112,12 @@ For a read-only check as root on a board running the audited modules, invoke
 `sh aic-firmware-ready.sh wlan0` (default interface: `wlan0`; an explicit name
 can be used for the reference OS). It requires both `aic8800_bsp` and
 `aic8800_fdrv` module `initstate` values to be `live`, normal BSP work mode,
-and an interface backed by SDIO `c8a1:0082` using `aicwf_sdio` from
-`aic8800_fdrv`. Exit status is 0 for the ordering predicate, 1 for not-ready or
-missing evidence, and 2 for invalid arguments. `RADXA_SYSFS_ROOT` redirects
+and an interface backed by SDIO `c8a1:0082` using `aicwf_sdio`. The current
+mode attribute is `/sys/devices/platform/aic-bsp/aicbsp_info/cpmode`.
+If a driver module-owner link is exposed, it must point to `aic8800_fdrv`;
+the audited vendor 6.1 kernel/SDK does not expose that link, whereas 6.12
+sets the SDIO owner automatically. Exit status is 0 for the ordering predicate,
+1 for not-ready or missing evidence, and 2 for invalid arguments. `RADXA_SYSFS_ROOT` redirects
 reads for host fixtures only; runtime integration must use the real `/sys`.
 
 The source chain and its limits are in ADR-0001's firmware-readiness section.
@@ -134,5 +137,10 @@ Future startup integration must serialize these stages, stopping on every error:
 This script takes one snapshot; it neither polls nor starts any later stage.
 It assumes startup owns module/power/mode changes. It does not establish
 firmware identity, UART response, mainline pin correctness or cold-start
-reliability. It is not installed in a runtime overlay. Fourteen fixture tests
-pass; board execution and repeated cold-start verification remain pending.
+reliability. It is not installed in a runtime overlay. Seventeen fixture tests
+pass. One read-only run on the Radxa OS 6.1.84 reference passed on `wlan0`
+with status 0; a missing-interface check failed with status 1. The first board
+run exposed the missing `aicbsp_info` path component and the vendor kernel's
+absent owner link; the fixtures now cover both differences. Bluetooth and
+hciattach remained active and the temporary script was removed. Mainline and
+repeated cold-start verification remain pending; see ADR-0001 for evidence limits.
