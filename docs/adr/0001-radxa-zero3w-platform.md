@@ -80,6 +80,24 @@ The installed firmware copyright file and the tag's [copyright metadata](https:/
 
 Reproduce the version inventory with `uname -a`, `dpkg-query -W`, the module/sysfs paths above, `iw dev`, `iw list`, `bluetoothctl show` and `lsblk`. Use a privileged kernel-log read to identify loaded firmware, then `sha256sum` on those files. Do not publish Wi-Fi credentials, SSIDs or Bluetooth/MAC addresses with the evidence.
 
+### Radio pins and Bluetooth startup observed on the board
+
+A read-only follow-up decoded the active `/proc/device-tree` GPIO phandles rather than comparing numeric phandle IDs between trees. The following properties match the audited vendor AIC DT at `fd366906451692033f1ba273e77e7e2f936c78db`; this does not establish that the entire running tree came from that commit.
+
+| Function | Active DT property and pin |
+| --- | --- |
+| Wi-Fi power | `wireless-wlan/WIFI,poweren_gpio`: GPIO0 PC0, active high; `sdio-pwrseq/reset-gpios`: same pin, active low |
+| Bluetooth reset | `wireless-bluetooth/BT,reset_gpio`: GPIO0 PC1, active high |
+| Bluetooth wake / host interrupt | `BT,wake_gpio`: GPIO0 PB4; `BT,wake_host_irq`: GPIO0 PB3; both active high |
+| UART RTS | `uart_rts_gpios`: GPIO2 PB5, active low; pinctrl states `uart1m0-rtsn` and `uart1-gpios` |
+| Antenna selection | `board-antenna`: GPIO3 PD3, active low; fixed regulator, boot-on and always-on |
+
+These are recorded vendor property meanings, not a proposed mapping to generic upstream bindings. In particular, do not translate `BT,reset_gpio` directly to an upstream reset descriptor without verifying the power/reset sequence and polarity semantics.
+
+The installed `/usr/lib/rsetup/mod/aic8800.sh` invokes `bt_test -s uart 1500000 /dev/ttyS1` with a two-second timeout and checks for `hci recv thread ready (nil)`. Its systemd reset service runs before `hciattach -s 1500000 /dev/ttyS1 any 1500000 flow nosleep`. `bt_test` belongs to `aicrf-test` `4.0+git20241119.06da8476-1`, source package `aic8800`; the installed executable's SHA-256 is `c60aeeccaf382586ab4183206d4f5b15272c4e92d06134190761b9ddd82fec15`. This adds a userspace initialization requirement beyond compiling `aic8800_btlpm`. The follow-up did not rerun reset, reattach the UART or interrupt the working connection.
+
+The pinned [`bt_test.c`](https://github.com/radxa-pkg/aic8800/blob/fc7cbdd1791416c2457fa27a59e508bf325c9c3f/src/tools/aicrf_test/bt_test.c) opens the UART, sets hardware flow control, sends HCI Reset (`01 03 0c 00`) and reads a response before printing the readiness marker. Its server path also binds TCP port 5001 to `INADDR_ANY`. Reproduce the bounded reset behavior during runtime integration; do not install the factory test server as a persistent dongle service. UART response handling, GPIO control and firmware readiness still need validating together on the target kernel.
+
 ## Source findings
 
 | Component | Audited source/reference | What this establishes | Remaining verification |
@@ -191,7 +209,41 @@ make -C "$RADXA_LINUX_SRC" O="$RADXA_OUT" ARCH=arm64 LLVM=1 -j8 \
     aic8800_bsp/aic8800_bsp.o aic8800_fdrv/aic8800_fdrv.o aic8800_btlpm/aic8800_btlpm.o
 ```
 
-All five resulting files were inspected as ELF 64-bit ARM aarch64 objects. No compiler checks were disabled; existing nonfatal SDK warnings remain. The existing proxy socket/diagnostics regression test passed with local socket access enabled. This verifies object compilation only: full kernel/module linking, target DT/boot-chain integration, a Buildroot image and physical operation remain pending. Build logs were kept locally under `/tmp/radxa-build-check/` (`compile.log`, `compile-after-hid.log`, `compile-after-aic.log`, `compile-after-prototypes.log`); these temporary files are not release artifacts.
+All five resulting files were inspected as ELF 64-bit ARM aarch64 objects. No compiler checks were disabled; existing nonfatal SDK warnings remain. The existing proxy socket/diagnostics regression test passed with local socket access enabled. This initial check verified object compilation only; the full link follow-up is recorded below. Build logs were kept locally under `/tmp/radxa-build-check/` (`compile.log`, `compile-after-hid.log`, `compile-after-aic.log`, `compile-after-prototypes.log`); these temporary files are not release artifacts.
+
+### Full kernel and module linking
+
+The follow-up completed `olddefconfig Image modules rockchip/rk3566-radxa-zero-3w.dtb` using the same source, patch order, ARM64 configuration and LLVM 23.1.3. Building the complete kernel supplied `Module.symvers`; the external AIC `modules` target then passed MODPOST and linked all three `.ko` files. No undefined-symbol errors were downgraded or compiler checks disabled. The SDK still emits existing nonfatal warnings. Commands are preserved in the board-local [compatibility checks](../../aa_wireless_dongle/board/radxa/zero3w/checks/README.md).
+
+| Linked ARM64 module | Recorded dependencies |
+| --- | --- |
+| `libcomposite.ko` | None listed |
+| `usb_f_accessory.ko` | `libcomposite` |
+| `aic8800_bsp.ko` | None listed |
+| `aic8800_btlpm.ko` | `rfkill`, `aic8800_bsp` |
+| `aic8800_fdrv.ko` | `cfg80211`, `aic8800_bsp` |
+
+All five modules were inspected as ARM aarch64 ELF files with identical vermagic `6.12.114 SMP preempt mod_unload aarch64`. The kernel `Image` was identified as an ARM64 boot executable, and the upstream ZERO 3W DT compiled to a 54,587-byte DTB. The resolved kernel `.config` SHA-256 was `9fed7f3914a9a2af6a44e9dae3e1ed9c879c531ba436f78da0a8f66ad1908535`. Logs: `/tmp/radxa-build-check/full-kernel-link.log` and `full-aic-link.log`; kernel output: `buildroot/output/radxa-platform-check/linux` (ignored build artifacts).
+
+This establishes source compilation and symbol compatibility, not module loading or radio/accessory operation on the board. The generic upstream DT is a reference and still lacks the recorded AIC antenna/runtime integration; it is not a verified V1.12M device tree. A complete Buildroot image and physical verification remain pending.
+
+### Boot-chain build and packing
+
+The isolated `checks/bootchain_defconfig` uses the existing Buildroot 2026.02.3 pin, U-Boot 2026.01 (`radxa-zero-3-rk3566_defconfig`) and the existing rkbin commit `f43a462e7a1429a9d407ae52b4745033034a6cf9`. It enables mandatory download hashes and builds only the bootloader with Bootlin AArch64 glibc stable `2025.08-1`, GCC `14.3.0`. It is deliberately outside the external tree's shipping `configs/` directory.
+
+| Input | SHA-256 |
+| --- | --- |
+| [u-boot-2026.01.tar.bz2](https://ftp.denx.de/pub/u-boot/u-boot-2026.01.tar.bz2) | `b60d5865cefdbc75da8da4156c56c458e00de75a49b80c1a2e58a96e30ad0d54` |
+| rkbin `bin/rk35/rk3566_ddr_1056MHz_v1.23.bin` | `20e4bb076847bd019fcdeb7bdc15bd249890f07ecc76e9937101f22e50950982` |
+| rkbin `bin/rk35/rk3568_bl31_v1.44.elf` | `65110f822fdbdd0163ce2dabc60591e7a8a0ffbc9471780e29eef0062f9ed7b6` |
+
+The U-Boot archive matches `boot/uboot/uboot.hash`. The two blob hashes above identify files at the pinned rkbin source, not an independent signature. Buildroot additionally verifies its rkbin source archive and `LICENSE` hashes; the latter is `d2765124a2c24d71aba3cbc6cdd6975a5a297821264eb6c26378a4c16cd16e92`. Keep that notice with redistributed boot firmware. The RK3568 BL31 filename is shared by the RK3566 path; DDR remains the explicitly selected RK3566 binary. Building this combination does not establish DDR training or boot on the physical 1 GB board.
+
+The `uboot` target completed successfully in the existing `aawg-buildroot` Docker environment. Both U-Boot and SPL were inspected as ARM aarch64 ELF executables. `images/u-boot-rockchip.bin` is 9,632,768 bytes, SHA-256 `9f98a8e8187f1c5666813684c4f471325c74e87104773e8b84bdaad5eb531fc6`. This identifies the local experiment output, not a reproducible release hash; U-Boot's build timestamp was not fixed. The build log is `/tmp/radxa-build-check/bootchain-buildroot.log`.
+
+Packing verification decoded the Rockchip v2 header and checked its header/payload SHA-256 fields: the exact DDR input is at raw-image offset `0x800` and SPL at `0xf000`. Do not use the nested pre-`mkimage` offsets in `simple-bin.map` as final payload locations. The exact generated FIT is at `0x7f8000`; all six file-backed BL31 ELF load segments match its contents. `dumpimage -l` identifies the default ZERO 3W configuration, six ATF segments, U-Boot and both upstream 3W/3E bootloader DTs. Binman reports the optional `tee-os` blob absent; OP-TEE was not selected or validated. These offsets are within the bootloader file; raw SD placement and partition boundaries still belong to image integration.
+
+The checked-in configuration matches the experiment's input. Buildroot's `check-package` processed its 21 lines without warnings (using an identical temporary `configs/*_defconfig` copy, because its parser intentionally ignores board-local defconfigs). The check produces no complete SD-card image and did not write to the owner's card or change the running Radxa OS.
 
 ## Consequences and next evidence
 
@@ -203,4 +255,4 @@ All five resulting files were inspected as ELF 64-bit ARM aarch64 objects. No co
 
 ## Verification performed
 
-On 2026-10-14, checked the existing Buildroot version and Pi source/patch configuration using task #5's commands and inspected the cited source snapshots. On 2026-10-21, collected the physical diagnostic evidence above, resolved the AIC package tag, matched all six loaded firmware/configuration files against that source, performed vendor/upstream accessory patch checks and reproduced/fixed the three ARM64 object-compilation failures above. No Buildroot target image or car-operation result is established by these checks.
+On 2026-10-14, checked the existing Buildroot version and Pi source/patch configuration using task #5's commands and inspected the cited source snapshots. On 2026-10-21, collected the physical diagnostic evidence above, resolved the AIC package tag, matched all six loaded firmware/configuration files against that source, performed vendor/upstream accessory patch checks and reproduced/fixed the three ARM64 object-compilation failures above. The follow-up passed full kernel/module linking, built and inspected the isolated U-Boot/DDR/BL31 combination, and recorded the live radio pins and Bluetooth reset sequence. No complete Buildroot target image or car-operation result is established by these checks.
