@@ -46,3 +46,18 @@ Keep MODPOST errors enabled. Inspect the three AIC `.ko` files and the USB
 accessory/composite modules as ARM64 ELF files with the matching kernel vermagic.
 The upstream DT compiled here is a reference: the AIC board's antenna, reset and
 UART initialization still require board integration and physical verification.
+
+## V1.12M AIC device-tree candidate
+
+After applying all shared and board-local Linux patches in the ADR's order:
+
+```sh
+make -C "$RADXA_LINUX_SRC" O="$RADXA_OUT" ARCH=arm64 LLVM=1 -j8 \
+    rockchip/rk3566-radxa-zero-3w-aic8800d80.dtb
+```
+
+Patch `0004` adds this separate build-only target. It describes the no-eMMC
+board, antenna GPIO and AIC SDIO settings. It retains upstream UART flow control
+and USB OTG mode; Bluetooth reset/wake handling remains a runtime prerequisite.
+Compilation and compiled-property checks are recorded in the ADR. This target
+has not been booted and does not replace the generic upstream ZERO 3W DT.

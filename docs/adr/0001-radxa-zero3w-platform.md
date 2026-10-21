@@ -70,6 +70,8 @@ The installed package maps to official [tag `4.0+git20241119.06da8476-1`](https:
 
 The installed firmware copyright file and the tag's [copyright metadata](https://github.com/radxa-pkg/aic8800/blob/fc7cbdd1791416c2457fa27a59e508bf325c9c3f/debian/copyright) declare `Files: *`, Radxa copyright and GPL-3+, without separate AIC binary terms. This packaging metadata alone does not resolve the firmware's redistribution/source obligations. Resolve the selected binaries' terms before including them in a downloadable Buildroot release.
 
+A follow-up found the maintainer's [licensing clarification in upstream issue #54](https://github.com/radxa-pkg/aic8800/issues/54): after checking with AIC, Radxa states that the driver source is GPL v2 and that the GPL v3 metadata came from its package template. This supports distinguishing driver-source terms from packaging terms. The discussion does not identify separate terms or corresponding source for the selected opaque D80 firmware files; binary redistribution remains unresolved. No vendor contact was made or firmware license inferred from a third-party repository.
+
 ### Capability evidence and limits
 
 - Physical microSD boot and SSH succeeded on V1.12M. `/`, `/config` and `/boot/efi` are mounted from microSD in **Radxa OS**; the future Buildroot partition layout is not tested by this result.
@@ -179,7 +181,7 @@ Compilation exposed three problems that patch-application checks did not detect:
 | `cfg80211_ops.set_monitor_channel` includes a net-device argument, but the patched SDK enables that path only at 6.13+ | `patches/aic8800/0001-Handle-monitor-callback-in-Linux-6.12.114.patch` enables the existing signature and both internal call sites for the pinned 6.12.114 candidate | Callback type error resolved |
 | Two RX preallocation definitions use `()` despite existing `(void)` declarations, rejected by Clang's strict-prototype check | `patches/aic8800/0002-Use-strict-RX-preallocation-prototypes.patch` matches the existing header declarations | All three AIC aggregate objects compile for ARM64 |
 
-The AIC patch paths above are relative to `aa_wireless_dongle/board/radxa/zero3w/`. These are preparation patches for the pinned candidates. No active defconfig consumes them yet. Future integration must apply the existing two shared accessory patches **before** the Radxa HID patch, and the official AIC Debian patch series **before** the two scoped AIC patches. Give Radxa its own Linux download hash; do not select the Pi Linux hash or apply the Radxa-only patches to the retained Pi pin.
+The AIC patch paths above are relative to `aa_wireless_dongle/board/radxa/zero3w/`. These are preparation patches for the pinned candidates. No active defconfig consumes them yet. Future integration must apply the existing two shared accessory patches **before** the board-local Linux patches (HID correction, then the DT variant below), and the official AIC Debian patch series **before** the two scoped AIC patches. Give Radxa its own Linux download hash; do not select the Pi Linux hash or apply the Radxa-only patches to the retained Pi pin.
 
 To reproduce on fresh, verified source extractions, set `RADXA_LINUX_SRC`, `RADXA_AIC_SRC`, `RADXA_OUT` and `RADXA_REPO` to absolute paths. `RADXA_AIC_SRC` is the archive root containing `src/` and `debian/`. Host tools must include LLVM/Clang, make, flex, bison and bc.
 
@@ -188,7 +190,9 @@ set -eu
 for patch in "$RADXA_REPO"/aa_wireless_dongle/patches/linux/*.patch; do
     git -C "$RADXA_LINUX_SRC" apply "$patch"
 done
-git -C "$RADXA_LINUX_SRC" apply "$RADXA_REPO/aa_wireless_dongle/board/radxa/zero3w/patches/linux/0003-Pass-HID-buffer-size-for-Linux-6.12.114.patch"
+for patch in "$RADXA_REPO"/aa_wireless_dongle/board/radxa/zero3w/patches/linux/*.patch; do
+    git -C "$RADXA_LINUX_SRC" apply "$patch"
+done
 while read -r patch rest; do
     case "$patch" in ''|\#*) continue ;; esac
     git -C "$RADXA_AIC_SRC" apply --include='src/SDIO/**' "$RADXA_AIC_SRC/debian/patches/$patch"
@@ -226,6 +230,16 @@ The follow-up completed `olddefconfig Image modules rockchip/rk3566-radxa-zero-3
 All five modules were inspected as ARM aarch64 ELF files with identical vermagic `6.12.114 SMP preempt mod_unload aarch64`. The kernel `Image` was identified as an ARM64 boot executable, and the upstream ZERO 3W DT compiled to a 54,587-byte DTB. The resolved kernel `.config` SHA-256 was `9fed7f3914a9a2af6a44e9dae3e1ed9c879c531ba436f78da0a8f66ad1908535`. Logs: `/tmp/radxa-build-check/full-kernel-link.log` and `full-aic-link.log`; kernel output: `buildroot/output/radxa-platform-check/linux` (ignored build artifacts).
 
 This establishes source compilation and symbol compatibility, not module loading or radio/accessory operation on the board. The generic upstream DT is a reference and still lacks the recorded AIC antenna/runtime integration; it is not a verified V1.12M device tree. A complete Buildroot image and physical verification remain pending.
+
+### V1.12M AIC device-tree preparation
+
+Board-local Linux patch `0004-Add-V1.12M-AIC8800D80-device-tree.patch` adds a separate `rk3566-radxa-zero-3w-aic8800d80.dtb` target on Linux 6.12.114. It inherits the upstream ZERO 3W tree, disables the unpopulated eMMC controller, adds GPIO3 PD3 antenna control with the standard fixed-regulator active-low default, and matches the audited AIC SDIO sample phase (180 degrees), pull-ups and drive strength (12). It removes the inherited RK817 external-clock request, which is absent from the working vendor AIC reference. The upstream 100 ms power-on and 5,000,000 us power-off delays remain conservative experiment settings; their suitability is not hardware-verified.
+
+The source uses the pinned kernel's [fixed-regulator binding](https://github.com/gregkh/linux/blob/85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e/Documentation/devicetree/bindings/regulator/fixed-regulator.yaml), [MMC power-sequence binding](https://github.com/gregkh/linux/blob/85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e/Documentation/devicetree/bindings/mmc/mmc-pwrseq-simple.yaml) and [Rockchip MMC binding](https://github.com/gregkh/linux/blob/85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e/Documentation/devicetree/bindings/mmc/rockchip-dw-mshc.yaml), rather than copying unsupported vendor platform nodes or `enable-active-low`. Inherited UART1 hardware flow control and USB OTG behavior remain; Bluetooth reset/wake control is not invented in this patch.
+
+The new target compiled without DTC diagnostics. Compiled-tree checks using libfdt verified controller aliases/status, the SDIO power-sequence phandle and GPIO polarity, all six SDIO pinmux/drive settings, antenna GPIO/pinctrl/polarity, the inherited delays, UART flow control and OTG mode. The generic ZERO 3W DTB remained byte-identical to its recorded hash. The experimental DTB is 55,029 bytes, SHA-256 `39deb5067daa1eea5c638f93aadbd82ba17d01169a0f2632642dd6e952722660`; local evidence is `/tmp/radxa-build-check/aic-dtb-build.log` and `check-aic-dtb.py`. Patch application and reverse checks also passed.
+
+This is a compiled source candidate, not a complete AIC runtime or full schema/hardware validation. No shipping defconfig selects it. Bluetooth GPIO/reset/UART initialization, a Buildroot target integration, firmware terms and physical boot/radio/accessory checks remain pending.
 
 ### Boot-chain build and packing
 
