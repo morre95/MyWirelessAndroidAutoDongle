@@ -4,13 +4,41 @@
 
 The owner authorized the next diagnostic after the
 [v2 attachment failure and verified recovery](2026-10-22-radxa-bluetooth-test.md).
-The card still contains the restored Radxa OS reference. **No v3 image has
-been written or booted.** A guarded SSH/TTY shutdown request returned zero at
+**The card now contains the written and readback-verified v3 diagnostic.**
+The reader is safely powered off; the owner has been instructed to make one
+test start with the phone ready and keep power connected for twelve minutes.
+**V3 power-on has not yet been reported; no physical result is established.**
+The reference is currently not restored on the card.
+
+A guarded SSH/TTY shutdown request returned zero at
 18:51:05 UTC after checking reference kernel/root; the owner entered credentials
 directly in a local terminal. No password or terminal stream was captured.
 This is a successful shutdown-command receipt, not independent confirmation
-of disconnected physical power. The owner has been asked to disconnect power
-and move the card to the reader; that confirmation is pending.
+of disconnected physical power. The owner subsequently confirmed moving the
+card to the reader in response to the power-disconnect/card-movement checklist.
+Fresh inventory matched reader model/serial/capacity, GPT and all three
+reference filesystem UUIDs/sizes before writing.
+
+The selected v3 image and compressed recovery backup hashes were verified.
+The guarded exclusive UDisks writer wrote and read back all 234,881,024 bytes
+with matching image SHA-256; it also cleared the stale backup GPT signature.
+Private receipt: `card-write-20261022T190035Z.json` in the v3 bundle. The DOS
+table and both new filesystem UUIDs/sizes were verified, then the filesystems
+were unmounted and the reader safely powered off. Receipt:
+`card-ready-for-bluetooth-v3.json` in the bundle.
+
+| Partition | Filesystem | UUID | Size (bytes) |
+| --- | --- | --- | ---: |
+| AICBOOT | ext4 | `e2f047ed-fa0a-4141-925f-e6b29a5bdf2d` | 134,217,728 |
+| AICBOOTLOGS | FAT | `A1EF-30AC` | 67,108,864 |
+
+Prepared local helpers are `/tmp/radxa-capture-bluetooth-v3.py`,
+`/tmp/radxa-restore-after-bluetooth-v3.py` and
+`/tmp/radxa-check-reference-after-bluetooth-v3.py`. They target this v3 bundle
+and the new filesystem UUIDs above; capture/restoration have not been run.
+Reidentify the device path on card return before using the restore helper.
+The prepared writer is `/tmp/radxa-write-bluetooth-v3.py`; do not rerun it on
+the test card, since its guards require the reference layout.
 
 The selected private artifact is
 `buildroot/output/radxa-bluetooth-test-20261022-v3/radxa-bluetooth-test.img`,
