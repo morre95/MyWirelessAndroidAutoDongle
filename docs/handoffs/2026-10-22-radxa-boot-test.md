@@ -133,3 +133,8 @@ is pending: QEMU user emulation rejects its `TIOCGEXCL` ioctl, while the native
 host UART suite passes. No radio-test image has been flashed or booted, and the
 running reference remains untouched. Preparation does not authorize writing the
 card or interrupting Radxa OS.
+
+The owner subsequently moved the card to the reader to proceed. The radio image
+has now been written, readback-verified and safely ejected; the card contains the
+diagnostic again. Continue with the
+[radio-test handoff](2026-10-22-radxa-radio-test.md) for the current card state.
