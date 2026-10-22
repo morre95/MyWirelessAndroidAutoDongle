@@ -3,6 +3,8 @@
 Local draft for [issue #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5).
 Not published. The text below can be appended to the existing issue without
 replacing its history or changing its acceptance boxes/dependencies.
+The separately prepared [boot experiment](../../aa_wireless_dongle/board/radxa/zero3w/checks/boot-test.md)
+records the local diagnostic artifact and single-card recovery procedure.
 
 ---
 
@@ -53,6 +55,14 @@ the capability evidence criterion needs tracker review against the ADR before
 changing its checkbox. A complete Buildroot image, AP/pairing/coexistence,
 accessory negotiation and car/reliability acceptance belong to later issues.
 
-At this checkpoint, `main` remains `e7ef1f1` and the nine commits through
-`619536f` on `feature/radxa-zero3w-hci-reset` are local only. This draft and
-subsequent boot-test preparation do not imply a push, merge or hardware result.
+A separate boot-only diagnostic image is now prepared locally, using the
+checked U-Boot/kernel/DT and a minimal static BusyBox initramfs. It contains no
+radio firmware or modules and is intended to save kernel/hardware snapshots
+to a FAT log partition without Wi-Fi or SSH. Ten preparation/artifact tests
+pass. The recovery snapshot was reverified in full. No card was written and
+the image has not been booted; with the owner's single card, a fresh pre-test
+backup and subsequent full restoration are required for execution.
+
+`main` remains `e7ef1f1`; the source-selection commits through `619536f` on
+`feature/radxa-zero3w-hci-reset` and the subsequent local preparation work have
+not been pushed. This draft does not imply a push, merge or hardware result.
