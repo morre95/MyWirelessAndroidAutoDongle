@@ -59,9 +59,13 @@ A separate boot-only diagnostic image is now prepared locally, using the
 checked U-Boot/kernel/DT and a minimal static BusyBox initramfs. It contains no
 radio firmware or modules and is intended to save kernel/hardware snapshots
 to a FAT log partition without Wi-Fi or SSH. Ten preparation/artifact tests
-pass. The recovery snapshot was reverified in full. No card was written and
-the image has not been booted; with the owner's single card, a fresh pre-test
-backup and subsequent full restoration are required for execution.
+pass. The recovery snapshot was reverified in full. The owner then selected
+that existing backup as the recovery point and moved the card to the reader.
+The diagnostic image was written and all 234,881,024 bytes passed SHA-256
+readback verification. The expected boot/log partitions were detected and
+safely unmounted; the reader was powered off. The image has not yet been booted
+on the board. Log collection and full restoration from the selected backup
+remain the next physical steps.
 
 `main` remains `e7ef1f1`; the source-selection commits through `619536f` on
 `feature/radxa-zero3w-hci-reset` and the subsequent local preparation work have
