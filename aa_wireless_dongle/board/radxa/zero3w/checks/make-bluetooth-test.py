@@ -43,9 +43,15 @@ def checked_inputs(userspace, prep):
         'a26e9214a010a0a6c1e291fb40e530a805adcb640395c3e9a54e25c75666ff1a')
     boot.require_hash(CHECKS / 'aic-pairing-test.c',
         'beea11866d637d51187407e10400e6e1ecff9f347dcd7fcf773e67d750bf8c71')
+    boot.require_hash(CHECKS / 'aic-bounded-run.c',
+        '6dcc09c264112d83e5f0590246936d0f76817a30b4530a21b2eaa482323b5e4f')
+    boot.require_hash(prep / 'aic-bounded-run',
+        'bf4019e9511459d91b8cdde4f1e1b84d4e2a0bc9a9b907d53a4a86e73b3c3c6a')
     files = {'init': CHECKS / 'bluetooth-test-init.sh',
              'aic-bluetooth-test.sh': CHECKS / 'aic-bluetooth-test.sh',
-             'bin/aic-pairing-test': prep / 'aic-pairing-test'}
+             'aic-bluetooth-snapshot.sh': CHECKS / 'aic-bluetooth-snapshot.sh',
+             'bin/aic-pairing-test': prep / 'aic-pairing-test',
+             'bin/aic-bounded-run': prep / 'aic-bounded-run'}
     loaded = {'rfkill', 'cfg80211', 'aic8800_bsp', 'aic8800_fdrv'}
     for name, expected in MODULES.items():
         path = prep / f'modules/{name}.ko'
@@ -66,7 +72,7 @@ def assemble(output, userspace, prep):
     output = boot.validate_output(output)
     files = checked_inputs(userspace, prep)
     busybox = radio.PREP / 'busybox-1.37.0/busybox'
-    for name in ('bluetooth-test-init.sh', 'aic-bluetooth-test.sh'):
+    for name in ('bluetooth-test-init.sh', 'aic-bluetooth-test.sh', 'aic-bluetooth-snapshot.sh'):
         boot.run('qemu-aarch64-static', str(busybox), 'ash', '-n', str(CHECKS / name))
     # Linux accepts concatenated newc archives; later regular files replace earlier ones.
     # Keep the Buildroot base first, checked radio payload second, and new init last.
@@ -78,7 +84,7 @@ def assemble(output, userspace, prep):
         shutil.copytree(base / 'boot', output / 'boot')
     ramfs = output / 'ramfs'; ramfs.mkdir()
     hashes = {name: sha(path.read_bytes()) for name, path in files.items()}
-    inputs = {'bluez_version': '5.79', 'dbus_version': '1.14.10',
+    inputs = {'diagnostic_version': 3, 'bluez_version': '5.79', 'dbus_version': '1.14.10',
               'pairing_window_seconds': 180, 'capability': 'NoInputNoOutput',
               'module_order': list(MODULES), 'extra_payload_sha256': hashes,
               'base_radio_ramfs_sha256': base_manifest['ramfs_sha256'],

@@ -12,7 +12,23 @@ attach_pid= bluez_pid= dbus_pid=
 stage=starting
 printf 'BT_PAIRING_RESULT=pending\n' >"$logdir/bluetooth-result.txt" || exit 20
 
+finished() {
+    kill -0 "$1" 2>/dev/null || return 0
+    IFS= read -r child_stat <"/proc/$1/stat" 2>/dev/null || return 1
+    case "$child_stat" in *') Z '*) return 0;; esac
+    return 1
+}
+snapshot() {
+    if aic-bounded-run 5 /bin/sh "${RADXA_BT_SNAPSHOT:-/aic-bluetooth-snapshot.sh}" \
+        "$logdir" "$1" "${attach_pid:--}" >"$logdir/$1-snapshot-run.log" 2>&1; then
+        snapshot_status=0
+    else snapshot_status=$?; fi
+    printf 'SNAPSHOT_EXIT=%s\n' "$snapshot_status" >"$logdir/$1-snapshot-exit.txt"
+    return "$snapshot_status"
+}
 cleanup() {
+    original_status=$?
+    trap - EXIT
     for pid in "$bluez_pid" "$attach_pid" "$dbus_pid"; do
         [ -z "$pid" ] || kill "$pid" 2>/dev/null || :
     done
@@ -20,14 +36,40 @@ cleanup() {
     for pid in "$bluez_pid" "$attach_pid" "$dbus_pid"; do
         if [ -n "$pid" ]; then
             kill -KILL "$pid" 2>/dev/null || :
-            wait "$pid" 2>/dev/null || :
         fi
     done
+    cleanup_attempt=0
+    while [ "$cleanup_attempt" -lt 3 ]; do
+        remaining=
+        for pid in "$bluez_pid" "$attach_pid" "$dbus_pid"; do
+            [ -z "$pid" ] || finished "$pid" || remaining="$remaining $pid"
+        done
+        [ -n "$remaining" ] || break
+        cleanup_attempt=$((cleanup_attempt + 1)); sleep 1
+    done
+    : >"$logdir/cleanup-result.txt"
+    for pid in "$bluez_pid" "$attach_pid" "$dbus_pid"; do
+        [ -n "$pid" ] || continue
+        if finished "$pid"; then
+            if wait "$pid" 2>/dev/null; then child_status=0; else child_status=$?; fi
+            printf 'CHILD_PID=%s EXIT=%s\n' "$pid" "$child_status" >>"$logdir/cleanup-result.txt"
+        else
+            printf 'UNREAPED_PID=%s\n' "$pid" >>"$logdir/cleanup-result.txt"
+            original_status=16
+        fi
+    done
+    if [ "$original_status" -eq 16 ]; then
+        printf 'BT_PAIRING_RESULT=failed\nSTAGE=cleanup\nEXIT_CODE=16\n' >"$logdir/bluetooth-result.txt"
+        printf 'CLEANUP_FINISHED=0\n' >>"$logdir/cleanup-result.txt"
+    else printf 'CLEANUP_FINISHED=1\n' >>"$logdir/cleanup-result.txt"; fi
+    exit "$original_status"
 }
 trap cleanup EXIT
 fail() {
     printf 'BT_PAIRING_RESULT=failed\nSTAGE=%s\nEXIT_CODE=%s\n' "$stage" "$1" \
         >"$logdir/bluetooth-result.txt"
+    cp "$logdir/bluetooth-result.txt" "$logdir/failure-result.txt" || :
+    snapshot failure || :
     sync
     exit "$1"
 }
@@ -45,9 +87,10 @@ mark prerequisite
 grep -qx 'RADIO_RESET_RESULT=success' "$logdir/radio-result.txt" || fail 10
 for module in ecc ecdh_generic cmac bluetooth pwrseq-core btbcm btqca hci_uart; do
     mark "load_$module"
-    timeout -s KILL 10 insmod "$modules/$module.ko" || fail "$?"
+    aic-bounded-run 10 insmod "$modules/$module.ko" || fail "$?"
 done
 
+snapshot before_attach || fail 20
 mark hci_attach
 hciattach -n -t 10 -s 1500000 /dev/ttyS1 any 1500000 flow >"$logdir/hciattach.log" 2>&1 &
 attach_pid=$!
@@ -82,7 +125,7 @@ while ! dbus-send --system --print-reply --reply-timeout=1000 --dest=org.bluez \
 done
 
 mark pairing_window
-if timeout -s TERM -k 10 200 aic-pairing-test "$DBUS_SYSTEM_BUS_ADDRESS" 180 \
+if aic-bounded-run 210 aic-pairing-test "$DBUS_SYSTEM_BUS_ADDRESS" 180 \
     >"$logdir/pairing.log" 2>&1; then pairing_status=0; else pairing_status=$?; fi
 printf 'PAIRING_AGENT_EXIT=%s\n' "$pairing_status" >"$logdir/pairing-exit.txt" || exit 20
 mark capture_adapter

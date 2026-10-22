@@ -28,7 +28,7 @@ class BluetoothImage(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.directory = Path(os.environ.get('RADXA_BLUETOOTH_TEST_DIR', str(
-            ROOT / 'buildroot/output/radxa-bluetooth-test-20261022-v2')))
+            ROOT / 'buildroot/output/radxa-bluetooth-test-20261022-v3')))
         cls.manifest = json.loads((cls.directory / 'manifest.json').read_text())
         archive = gzip.decompress((cls.directory / 'boot/initramfs.cpio.gz').read_bytes())
         cls.components = []; offset = 0
@@ -66,7 +66,8 @@ class BluetoothImage(unittest.TestCase):
         for name, expected in self.manifest['extra_payload_sha256'].items():
             self.assertEqual(hashlib.sha256(extract(self.components[2], name)).hexdigest(), expected, name)
         for name, source in [('init', 'bluetooth-test-init.sh'),
-                             ('aic-bluetooth-test.sh', 'aic-bluetooth-test.sh')]:
+                             ('aic-bluetooth-test.sh', 'aic-bluetooth-test.sh'),
+                             ('aic-bluetooth-snapshot.sh', 'aic-bluetooth-snapshot.sh')]:
             self.assertEqual(extract(self.components[2], name), (CHECKS / source).read_bytes())
         self.assertEqual(self.manifest['generator_sha256'],
                          hashlib.sha256((CHECKS / 'make-bluetooth-test.py').read_bytes()).hexdigest())
@@ -89,6 +90,20 @@ class BluetoothImage(unittest.TestCase):
         self.assertEqual(inputs['pairing_window_seconds'], 180)
         self.assertEqual(inputs['capability'], 'NoInputNoOutput')
         self.assertEqual(extract(self.components[2], 'bin/aic-pairing-test')[18:20], b'\xb7\x00')
+
+    def test_bounded_failure_capture_is_in_actual_image(self):
+        final = self.components[2]
+        self.assertEqual(extract(final, 'bin/aic-bounded-run')[18:20], b'\xb7\x00')
+        self.assertEqual(extract(final, 'aic-bluetooth-snapshot.sh'),
+                         (CHECKS / 'aic-bluetooth-snapshot.sh').read_bytes())
+        inputs = json.loads(extract(final, 'bluetooth-inputs.json'))
+        self.assertEqual(inputs['diagnostic_version'], 3)
+        init = extract(final, 'init')
+        self.assertIn(b'if /bin/sh /aic-bluetooth-test.sh', init)
+        self.assertIn(b'aic-bounded-run 10 /bin/sh /aic-bluetooth-snapshot.sh', init)
+        self.assertIn(b'capture_finished=0', init)
+        self.assertIn(b'aic-bounded-run 210 aic-pairing-test',
+                      extract(final, 'aic-bluetooth-test.sh'))
 
     def test_init_refuses_host_execution(self):
         r = subprocess.run(['sh', str(CHECKS / 'bluetooth-test-init.sh')], capture_output=True, text=True)

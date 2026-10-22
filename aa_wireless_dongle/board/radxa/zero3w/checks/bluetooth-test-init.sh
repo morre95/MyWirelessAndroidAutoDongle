@@ -42,18 +42,13 @@ if [ -n "$logdev" ] && $BB mount -t vfat -o rw "$logdev" /logs; then
                 else bluetooth_status=$?; fi
             else radio_status=$?; fi
         else setup_status=$?; fi
-        {
-            $BB uname -a
-            $BB cat /proc/cmdline /proc/modules /sys/kernel/debug/gpio
-            for entry in /sys/bus/sdio/devices/*/uevent; do
-                [ -f "$entry" ] && { echo "$entry"; $BB cat "$entry"; }
-            done
-            $BB ls -l /sys/class/net /sys/class/tty/ttyS1 /sys/class/udc /sys/class/bluetooth
-        } >"$logdir/hardware-after-cleanup.txt" 2>&1
-        $BB dmesg >"$logdir/dmesg.txt"
-        $BB cp /sys/firmware/fdt "$logdir/live.dtb"
-        printf 'SETUP_EXIT=%s\nRADIO_STAGE_EXIT=%s\nBLUETOOTH_STAGE_EXIT=%s\nCAPTURE_FINISHED=1\n' \
-            "$setup_status" "$radio_status" "$bluetooth_status" >"$logdir/capture-result.txt"
+        if aic-bounded-run 10 /bin/sh /aic-bluetooth-snapshot.sh "$logdir" final - \
+            >"$logdir/final-snapshot-run.log" 2>&1; then
+            final_status=0 capture_finished=1
+        else final_status=$? capture_finished=0; fi
+        printf 'SETUP_EXIT=%s\nRADIO_STAGE_EXIT=%s\nBLUETOOTH_STAGE_EXIT=%s\nFINAL_SNAPSHOT_EXIT=%s\nCAPTURE_FINISHED=%s\n' \
+            "$setup_status" "$radio_status" "$bluetooth_status" "$final_status" \
+            "$capture_finished" >"$logdir/capture-result.txt"
         $BB sync
     fi
     $BB umount /logs
