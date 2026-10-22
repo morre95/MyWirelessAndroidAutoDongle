@@ -2,7 +2,7 @@
 
 Preparation follows the owner's authorization after the successful
 [radio reset test](../../../../../docs/handoffs/2026-10-22-radxa-radio-test.md).
-The reference Radxa OS remains running while local build preparation proceeds.
+The reference Radxa OS is left unchanged during local build preparation.
 The existing owner-selected full-card backup remains the recovery point. The
 owner has an Android phone available for the manual pairing step.
 

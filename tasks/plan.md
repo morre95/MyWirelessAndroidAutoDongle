@@ -8,7 +8,7 @@
 **Specification:** [Approved hardware-support spec, issue #4](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/4).
 **Target:** Radxa ZERO 3W, 1 GB RAM, no eMMC, microSD boot.
 **Task tracker:** GitHub Issues in `morre95/MyWirelessAndroidAutoDongle`.
-**Session handoff:** [2026-10-22 boot-test record](../docs/handoffs/2026-10-22-radxa-boot-test.md) records the physical boot evidence and current recovery state. The [2026-10-21 source-selection record](../docs/handoffs/2026-10-21-radxa-zero3w.md) retains the earlier commit/reference details and firmware inquiry.
+**Session handoff:** [2026-10-22 Bluetooth-test preparation](../docs/handoffs/2026-10-22-radxa-bluetooth-test.md) records the next prepared image and physical checkpoint. The [radio-test record](../docs/handoffs/2026-10-22-radxa-radio-test.md) records successful firmware/reset evidence and verified recovery. The [2026-10-21 source-selection record](../docs/handoffs/2026-10-21-radxa-zero3w.md) retains the earlier commit/reference details and firmware inquiry.
 
 ## Overview and assumptions
 
@@ -235,3 +235,11 @@ Checkpoint: image/build checks and failure-path tests must pass before the
 owner moves the card for writing. Do not interrupt the running reference while
 preparing. Firmware images/logs remain private; firmware terms, regulatory/AP
 warnings and full dongle acceptance remain unresolved.
+
+The local preparation checkpoint passed in `8ff34f0`: an isolated BlueZ/D-Bus
+userspace and the private 224 MiB image are built, 24 native/stage/image checks
+pass, and the same nine agent cases also pass with the actual ARM64/GIO binary
+under QEMU. Physical UART/BlueZ/phone execution is pending. The owner confirmed
+phone availability; the test includes a three-minute pairing window and requires
+actual paired-property evidence, not merely a powered adapter. Follow the latest
+Bluetooth handoff for card movement, identity-checked writing and recovery.

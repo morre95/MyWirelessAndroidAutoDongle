@@ -40,3 +40,20 @@ within the three-minute window and allow twelve minutes before card return.
 Preserve logs before restoring the selected full-card backup. Remove the phone's
 temporary test bond after capture; its controller-side keys are intentionally
 not persistent across recovery. Never print/copy link keys into public evidence.
+
+## Reference shutdown checkpoint
+
+After the image/checks completed, a strict-host-key SSH login reverified
+reference kernel `6.1.84-10-rk2410-nocsf` and root `/dev/mmcblk1p3`. Passwordless
+sudo was unavailable, so a local interactive SSH/TTY was opened for
+`sudo systemctl poweroff --no-block`, guarded by the same kernel/root checks.
+No password or terminal stream was captured. The session ended with SSH status
+255; the control socket disappeared and the saved SSH endpoint was subsequently
+unreachable. This is consistent with shutdown but is not an independent physical
+power-state confirmation or a captured successful systemctl receipt.
+
+Private receipts are `reference-shutdown-preparation.json` and
+`interactive-shutdown-receipt.json` in the selected image directory. The card
+still contains Radxa OS. **Disconnect Radxa power before moving the card to the
+reader.** Reidentify its model/serial/capacity and reference partition UUIDs
+before writing; do not reuse an old device path without those checks.
