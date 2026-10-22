@@ -1,5 +1,14 @@
 # Next mainline Bluetooth test — 2026-10-22
 
+## Resume checkpoint
+
+The owner requested a handoff and will continue this test later. **Preparation
+is complete; no Bluetooth image has been written or booted.** Card movement to
+the reader has not been confirmed. Its last confirmed location was in Radxa,
+containing the restored Radxa OS reference. Physical power-off is not confirmed;
+disconnect power before moving the card. Resume with the physical checklist
+below, after the owner is ready with the card and Android phone.
+
 The owner authorized proceeding after the
 [radio-reset experiment and verified recovery](2026-10-22-radxa-radio-test.md),
 and confirmed that an Android phone is available. The next private diagnostic
@@ -33,8 +42,8 @@ kernel. Firmware distribution, regulatory/AP warnings, actual pairing and
 full dongle acceptance remain unresolved. #5 stays open; no dependent shipping
 task was unblocked or image published.
 
-The next physical step is clean reference shutdown and moving the card to the
-reader for identity-checked writing and full image readback. The operator must
+The next physical step is confirming power is disconnected and moving the card
+to the reader for identity-checked writing and full image readback. The operator must
 be ready on the phone before test power-on, perform one start, confirm pairing
 within the three-minute window and allow twelve minutes before card return.
 Preserve logs before restoring the selected full-card backup. Remove the phone's
@@ -57,3 +66,104 @@ Private receipts are `reference-shutdown-preparation.json` and
 still contains Radxa OS. **Disconnect Radxa power before moving the card to the
 reader.** Reidentify its model/serial/capacity and reference partition UUIDs
 before writing; do not reuse an old device path without those checks.
+
+## Evidence and recovery point
+
+The preceding radio test physically passed firmware readiness and HCI Reset on
+Linux 6.12.114, with both AIC SDIO functions bound. Its private evidence is
+`buildroot/output/radxa-radio-test-20261022-v2/evidence-20261022T115544Z/`
+(`evidence.json`, `analysis.json` and captured logs). UART attachment, a powered
+BlueZ adapter and phone pairing on mainline are the next unverified steps.
+
+The entire selected reference backup was restored and read back successfully
+after that radio test. Recovery receipts and the subsequent runtime check are:
+
+- `buildroot/output/radxa-radio-test-20261022-v2/reference-restore-20261022T115621Z.json`
+- `buildroot/output/radxa-radio-test-20261022-v2/reference-status-20261022T124019Z.json`
+
+The latter confirmed Debian 12, kernel `6.1.84-10-rk2410-nocsf`, root
+`/dev/mmcblk1p3`, associated Wi-Fi, active SSH/hciattach/BlueZ and powered hci0.
+It does not establish mainline Bluetooth behavior.
+
+Use the owner's already selected recovery source:
+`buildroot/output/radxa-recovery/radxa-os-20261021-172921.img.zst`, with adjacent
+`.img.zst.json` metadata. Compressed SHA-256:
+`720c2d888099df709ab2508a0f68ddf46110d3919fc0717c44d6c9435a3d2819`.
+The decompressed image is **31,266,439,168 bytes**, SHA-256
+`35be4ea0a847505d390aad10c9c95e9d18406ddb11421bd726011d1bfb1a6679`.
+
+Previously verified reader: model `uSD SDDR-289`, serial `<private>`.
+Recheck these, card capacity and the reference GPT partitions before writing:
+
+| Partition | Filesystem | UUID | Size (bytes) |
+| --- | --- | --- | ---: |
+| config | FAT | `21BD-9125` | 16,777,216 |
+| efi | FAT | `21BD-F314` | 314,572,800 |
+| rootfs | ext4 | `d3e135b3-8caf-4d6e-b97a-d1da670d91b7` | 30,918,295,040 |
+
+Historical `/dev/sdc` is not a current device identification. The selected
+Bluetooth image directory contains `manifest.json` and `SHA256SUMS`; verify the
+actual image against the hash above before use. The earlier directory without
+`-v2` is superseded. The v2 init requires provenance capture and sync before
+starting radio actions. No rebuild is needed if the selected artifact remains
+intact.
+
+## Resume procedure
+
+1. Confirm the owner is ready with the Android phone. Disconnect Radxa power,
+   move the card to the reader and obtain a fresh device inventory. Verify the
+   identity, reference partitions, selected backup and selected Bluetooth image.
+2. Adapt the earlier guarded writer to this **Bluetooth v2** bundle and current
+   device identity. Unmount card filesystems, use the identity-checked exclusive
+   UDisks device handle, write exactly **234,881,024 bytes**, flush and read back
+   the entire written range against the image SHA-256. Follow the existing
+   procedure for clearing the stale backup GPT signature. Verify the test DOS
+   partition table, 128 MiB boot partition and 64 MiB `AICBOOTLOGS` partition;
+   save their new UUIDs, unmount and safely power off the reader.
+3. Open phone Bluetooth settings before powering Radxa. Use the same computer
+   USB-A–USB-C cable and one start. Pair with **Radxa Mainline Test** within three
+   minutes of its discovery window. Record the phone result and LED behavior.
+   Allow **twelve minutes** before disconnecting power and returning the card.
+4. Mount logs read-only, copy and hash every captured file privately, and
+   preserve the post-test written card range before restoration. Require radio
+   and Bluetooth success, agent exit zero with actual Paired property readback,
+   zero setup/radio/Bluetooth stage exits and completed capture. A dark LED or
+   `CAPTURE_FINISHED` alone does not establish success. Inspect BlueZ's live
+   object capture; hci0 may disappear in the later hardware cleanup snapshot.
+5. Restore the **entire** selected reference backup and read back all
+   31,266,439,168 bytes against the raw backup SHA-256. Previously this took
+   about 26.5 minutes. Verify reference GPT/filesystems, unmount and power off
+   the reader. UDisks may need a whole-disk `Block.Rescan` to refresh stale
+   test-partition metadata before verification.
+6. Boot the reference again and recheck kernel/root, Wi-Fi, SSH, hciattach,
+   BlueZ, powered hci0 and both AIC SDIO bindings. Remove the temporary test bond
+   from the phone after evidence collection. Summarize actual hardware findings
+   locally before considering another issue update.
+
+The historical helpers `/tmp/radxa-write-radio-test.py` and
+`/tmp/radxa-restore-after-radio.py` contain **radio-test** bundle paths and UUID
+guards. They are not ready to run for this Bluetooth test: adapt and review them
+against the new bundle/device/UUIDs first. `/tmp` files and SSH control sockets
+may disappear between sessions. `/tmp/radxa-reference-status.py` was the
+read-only runtime probe; recreate it if missing. Private access metadata and
+strict known-host records live under `buildroot/output/radxa-recovery/`; keep
+credentials, phone identifiers and bond keys out of public documentation.
+
+## Saved implementation
+
+Branch: `feature/radxa-zero3w-hci-reset`. Prepared work is saved in commits
+`2f9ed1f` (agent), `3c86dff` (userspace), `5a85e49` (stages), `8ff34f0` (image)
+and `d3136c5` (initial handoff/shutdown checkpoint). No push or merge was made.
+Source/build entry points are in
+`aa_wireless_dongle/board/radxa/zero3w/checks/`: `bluetooth-test.md`,
+`make-bluetooth-test.py`, `bluetooth-test-init.sh`, `aic-bluetooth-test.sh`,
+`aic-pairing-test.c` and `bluetooth-test_defconfig`. Local build inputs/logs are
+under `buildroot/output/radxa-bluetooth-test-prep/` and
+`buildroot/output/radxa-bluetooth-userspace-container/`. These ignored private
+artifacts do not travel with a Git checkout; preserve them for this experiment.
+
+The last published #5 update is recorded in
+[the issue-update receipt](2026-10-22-issue-5-update.md). This handoff adds no
+external publication. Pairing evidence, firmware redistribution, regulatory/AP
+review, persistent bonds, LE/RFCOMM and Android Auto acceptance remain separate
+unfinished work.
