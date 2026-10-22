@@ -92,10 +92,29 @@ Private evidence under `buildroot/output/radxa-boot-test-20261022-v3/`:
 - `reference-restore-20261022T094434Z.json`: snapshot hash, selected recovery
   source, full write/readback hashes/counts and successful completion state.
 
-Recovery used `radxa-recovery/radxa-os-20261021-172921.img.zst`. The owner must
-return the card to Radxa for the SSH/Wi-Fi/hciattach/BlueZ reference recheck;
-that post-restore hardware boot is not yet observed. Reidentify devices on each
-card insertion rather than reusing an earlier device name.
+Recovery used `radxa-recovery/radxa-os-20261021-172921.img.zst`. The owner then
+returned the card to Radxa and powered it on. A read-only SSH check, with the
+persisted host key strictly verified, confirmed Debian 12, reference kernel
+`6.1.84-10-rk2410-nocsf` and root on `/dev/mmcblk1p3`. Wi-Fi `wlan0` was
+associated with carrier/operstate up. SSH, hciattach and BlueZ were active;
+`hci0` was present and its BlueZ `Powered` property was true.
+
+BSP/fdrv were live in normal work mode, both expected SDIO functions were bound
+to `aicwf_sdio` / `aicbsp_sdio`, and btlpm was absent. The temporary startup-test
+directory was absent. The reference reset service was failed with exit status 2,
+matching the previously documented reference condition despite active/powered
+Bluetooth. Its journal yielded no records to this unprivileged SSH check;
+no new timeout-cause claim is made and no service was restarted or altered.
+
+Private structured evidence is under
+`buildroot/output/radxa-boot-test-20261022-v3/`:
+`reference-status-20261022T102328Z.json` records the initial check, and
+`reference-status-20261022T102541Z.json` repeats it after the owner requested a
+fresh SSH login. Both confirm the restored reference. Passwords were entered
+directly in a local SSH terminal and not stored. The temporary SSH control
+connection was closed after the checks; local access metadata now records the
+verified reference state. Reidentify devices on each insertion rather than
+reusing an earlier name.
 
 The status update remains a [local draft](2026-10-22-issue-5-update.md).
 No GitHub publication, push or merge was performed. Firmware terms and #5's

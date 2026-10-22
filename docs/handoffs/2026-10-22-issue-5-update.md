@@ -79,9 +79,11 @@ These are brief boot-only snapshots, not acceptance cold starts or tests of
 radio/accessory operation. Raw logs/live DTs and a post-boot test-card snapshot
 are preserved privately. Full-card restoration to the owner-selected reference
 snapshot completed: all 31,266,439,168 bytes passed raw SHA-256 readback, original
-partitions/UUIDs were verified, and the reader was powered off safely. A
-post-restore Radxa OS hardware/SSH/radio recheck awaits the owner returning the
-card to the board.
+partitions/UUIDs were verified, and the reader was powered off safely. The owner
+returned the card to Radxa. A read-only, strict-host-key SSH check confirmed
+Debian 12/kernel 6.1.84, associated Wi-Fi, active hciattach/BlueZ and powered
+hci0. The previously documented reference reset-service failure (status 2)
+persists; it was not changed or mistaken for a newly clean startup sequence.
 
 `main` remains `e7ef1f1`; the source-selection commits through `619536f` on
 `feature/radxa-zero3w-hci-reset` and the subsequent local preparation work have
