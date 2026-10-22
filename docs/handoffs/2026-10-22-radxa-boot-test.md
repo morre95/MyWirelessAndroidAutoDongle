@@ -77,14 +77,24 @@ of mainline Wi-Fi/Bluetooth/accessory operation.
 
 ## Recovery
 
-The planned full-card restoration from the owner-selected previous-day backup
-is in progress. A separate private copy of the post-boot diagnostic card region
-is preserved before rewriting, in addition to the extracted logs. Final restore
-and full readback results must be recorded here before claiming recovery complete.
+Full-card restoration from the owner-selected previous-day backup completed
+on 2026-10-22. All **31,266,439,168 bytes** were written, flushed and read back;
+the SHA-256 matches the backup's recorded raw hash. The original `config`
+(FAT), `efi` (FAT) and `rootfs` (ext4) partitions and UUIDs were verified after
+refreshing cached device metadata. The desktop config mount was unmounted and
+UDisks successfully powered off the reader. The physical card now contains
+**Radxa OS again** and is safe to remove.
 
-Recovery uses `radxa-recovery/radxa-os-20261021-172921.img.zst`. After verified
-restoration and safe reader poweroff, the owner must return the card to Radxa
-for the SSH/Wi-Fi/hciattach/BlueZ reference recheck. Reidentify devices on each
+Private evidence under `buildroot/output/radxa-boot-test-20261022-v3/`:
+
+- `postboot-card-20261022T094434Z.img`: the first 234,881,024 bytes of the test
+  card preserved before restoring, in addition to the extracted logs.
+- `reference-restore-20261022T094434Z.json`: snapshot hash, selected recovery
+  source, full write/readback hashes/counts and successful completion state.
+
+Recovery used `radxa-recovery/radxa-os-20261021-172921.img.zst`. The owner must
+return the card to Radxa for the SSH/Wi-Fi/hciattach/BlueZ reference recheck;
+that post-restore hardware boot is not yet observed. Reidentify devices on each
 card insertion rather than reusing an earlier device name.
 
 The status update remains a [local draft](2026-10-22-issue-5-update.md).

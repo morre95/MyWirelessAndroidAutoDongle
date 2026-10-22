@@ -65,7 +65,9 @@ The diagnostic image was written and all 234,881,024 bytes passed SHA-256
 readback verification. The expected boot/log partitions were detected and
 safely unmounted; the reader was powered off.
 
-The physical follow-up recovered three separate boot snapshots, all reaching
+The owner confirmed three separate power applications from a computer USB-A
+port through a USB-A–USB-C cable. The physical follow-up recovered three boot
+snapshots, all reaching
 Linux **6.12.114** diagnostic userspace with the correct model/live-DT GPIO
 hogs, UART1 and `fcc00000.usb` UDC. All have expected-kernel/capture markers.
 One snapshot records both AIC SDIO functions (`c8a1:0082`, `c8a1:0182`); the
@@ -74,8 +76,12 @@ SDIO reliability. No panic/Oops/BUG/call-trace or priority 0–3 messages occur
 in the saved logs. The observed LED-off behavior is consistent with the
 diagnostic's intentional poweroff, whose final steps are after the saved dmesg.
 These are brief boot-only snapshots, not acceptance cold starts or tests of
-radio/accessory operation. Raw logs/live DTs are preserved privately; full-card
-restoration to the owner-selected reference snapshot follows evidence capture.
+radio/accessory operation. Raw logs/live DTs and a post-boot test-card snapshot
+are preserved privately. Full-card restoration to the owner-selected reference
+snapshot completed: all 31,266,439,168 bytes passed raw SHA-256 readback, original
+partitions/UUIDs were verified, and the reader was powered off safely. A
+post-restore Radxa OS hardware/SSH/radio recheck awaits the owner returning the
+card to the board.
 
 `main` remains `e7ef1f1`; the source-selection commits through `619536f` on
 `feature/radxa-zero3w-hci-reset` and the subsequent local preparation work have
