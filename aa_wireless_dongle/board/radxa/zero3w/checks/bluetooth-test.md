@@ -1,6 +1,51 @@
 # Mainline Bluetooth attachment diagnostic — 2026-10-22
 
-## Selected follow-up: UART failure capture (v3)
+## Selected next diagnostic: native process control (v4)
+
+V3 registered hci0, then falsely failed its attachment gate because the minimal
+BusyBox has neither a kill applet nor an ash kill builtin. Failed signal probes
+also led cleanup into a wait on a live process. The
+[v3 result](../../../../../docs/handoffs/2026-10-22-radxa-bluetooth-uart-capture.md)
+records the physical evidence and recovery. Host PATH had hidden this dependency
+in the previous stage fixtures, including the QEMU-shell cases.
+
+The selected unflashed private candidate is
+`buildroot/output/radxa-bluetooth-test-20261022-v4/radxa-bluetooth-test.img`,
+234,881,024 bytes, SHA-256
+`4a0186870d04bbca2bf73ded9b20f7ab0926723123c9e2820e4d4ea9603776ce`.
+Do not use the earlier v2/v3 candidates for another physical test. Complete the
+current reference restoration/readback/runtime recovery before card movement.
+
+V4 adds `aic-bounded-run --signal 0|TERM|KILL PID`. It accepts only decimal
+PIDs above 1 through INT_MAX; group, init and malformed targets are rejected.
+Zero means a successful operation/live probe, 1 means ESRCH (absent), 2 means
+invalid arguments, and 3 means another signal error. An EPERM zero-signal probe
+still means the process exists. The stage requires a working native probe at
+startup and only waits for an absent or zombie child; unexpected probe errors
+stay bounded and fail cleanup. No optional shell signal command is required.
+Snapshot/deadline/cleanup budgets, kernel/DT/firmware/modules, baudrate/flow,
+BlueZ and actual pairing acceptance remain unchanged from v3.
+
+All **41 host checks pass**: eight native-helper, fourteen stage, nine agent
+and ten packed-image checks. The stage PATH contains only explicit fixture
+commands and the real native helper, with no host kill fallback. The new
+regression using the actual ARM64 ash first timed out on the old stage and now
+reaches the pairing fixture and completes cleanup. Eight helper and fourteen
+stage checks also pass with the actual ARM64 helper under QEMU and target ash.
+The packed-image suite extracts both actual executables, reproduces missing
+shell kill and successfully probes through the native helper. Independent review
+has no remaining required findings; an ESRCH-result mutation fails the native
+test. These results validate the dependency fix, not physical BlueZ/pairing.
+
+The same compile command below builds the updated helper. Current pinned source
+SHA-256 is `35755804d17e4e0222dc73f4bcb3c4caa7f1bce6935c9aab9c74ffafa7932107`;
+ARM64 executable SHA-256 is
+`a956293998341b27230272a645282c3c0db339a76be54bb81ea77b91ca6ddd20`.
+The previous helper binary is retained privately as
+`radxa-bluetooth-test-prep/aic-bounded-run-v3`; source and packed v3 artifact
+remain preserved. V4 has not been written or physically tested.
+
+## Historical follow-up: UART failure capture (v3)
 
 The v2 physical test passed firmware readiness/HCI Reset but failed the
 `hci_attach` gate (11), before D-Bus/BlueZ/pairing. Final capture was absent.

@@ -1,6 +1,59 @@
 # Radxa Bluetooth UART failure capture — 2026-10-22
 
-## Current checkpoint
+## V3 result and recovery checkpoint
+
+The owner confirmed Radxa power disconnected and the card back in the reader
+at about **19:18:13 UTC**, after the requested twelve-minute minimum. Exact
+physical power-on/off timings were not independently measured. Fresh identity
+matched the selected reader/capacity and both v3 filesystem UUIDs below.
+
+All **26 captured files** were copied from a read-only log mount and individually
+SHA-256-verified into
+`buildroot/output/radxa-bluetooth-test-20261022-v3/evidence-20261022T191827Z/`.
+Private `evidence.json` and `analysis.json` preserve provenance and findings.
+There is one boot directory; embedded inputs match the v3 manifest.
+
+Firmware readiness and HCI Reset succeeded. The attachment failure snapshot
+completed with exit/status zero and shows **hci0 registered**, with hciattach
+in state **S**, waiting in `do_sys_poll` / `__arm64_sys_ppoll` (syscall 73).
+This establishes local H4/line-discipline/controller registration, not working
+Bluetooth command/event transport, a powered BlueZ adapter or pairing.
+No D-state attachment task was observed. BlueZ/pairing and final capture files
+are absent, and `cleanup-result.txt` is empty.
+
+The concrete diagnostic defect is now reproduced: the selected static BusyBox
+has both `CONFIG_KILL=n` and `CONFIG_ASH_JOB_CONTROL=n`. Its ash has no kill
+builtin, and none of the three packed archives installs a kill command.
+Running that exact ARM64 shell with an isolated PATH returns
+`kill: not found` / 127. Consequently `alive()` falsely rejects the live
+attachment, TERM/KILL calls do nothing, and `finished()` mistakes a failed
+probe for an exited child before blocking in `wait`. The captured state matches
+that path. Earlier host and QEMU stage fixtures inherited host PATH, masking
+this missing dependency. The empty attachment log is compatible with buffered
+stdout and does not establish an initialization hang.
+
+The full postboot 234,881,024-byte test range is preserved as
+`postboot-card-20261022T192023Z.img` in the v3 bundle, SHA-256
+`7b50f21bde6c5967f10d3a11a64c2132a8ed9909d1f253aae9d8b145bb199561`.
+Full reference restoration started at **19:20:25 UTC** and is **in progress**.
+Monitor `reference-restore-20261022T192023Z.json` in the v3 bundle; do not move
+the card or start another writer until restoration/readback finishes. Runtime
+reference recovery has not yet been verified for this run.
+
+A v4 image fixing the process-control dependency has been built locally and
+reviewed; source changes are saved in local commit `123f1fb`. Selected candidate:
+`buildroot/output/radxa-bluetooth-test-20261022-v4/radxa-bluetooth-test.img`,
+234,881,024 bytes, SHA-256
+`4a0186870d04bbca2bf73ded9b20f7ab0926723123c9e2820e4d4ea9603776ce`.
+It has not been written or physically tested. Forty-one host checks and
+twenty-two ARM64/QEMU helper/stage checks pass, including an isolated PATH with
+no host kill, actual child signal delivery and packed-executable probes. No
+required review findings remain; an ESRCH-result mutation is detected. These
+checks do not establish physical Bluetooth acceptance. Complete this recovery
+before any further hardware test. The full v4 recipe and limits are at the top
+of [bluetooth-test.md](../../aa_wireless_dongle/board/radxa/zero3w/checks/bluetooth-test.md).
+
+## Historical written-card/start checkpoint
 
 The owner authorized the next diagnostic after the
 [v2 attachment failure and verified recovery](2026-10-22-radxa-bluetooth-test.md).
