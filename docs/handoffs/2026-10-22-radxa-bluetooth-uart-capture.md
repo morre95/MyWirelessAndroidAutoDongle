@@ -35,10 +35,25 @@ stdout and does not establish an initialization hang.
 The full postboot 234,881,024-byte test range is preserved as
 `postboot-card-20261022T192023Z.img` in the v3 bundle, SHA-256
 `7b50f21bde6c5967f10d3a11a64c2132a8ed9909d1f253aae9d8b145bb199561`.
-Full reference restoration started at **19:20:25 UTC** and is **in progress**.
-Monitor `reference-restore-20261022T192023Z.json` in the v3 bundle; do not move
-the card or start another writer until restoration/readback finishes. Runtime
-reference recovery has not yet been verified for this run.
+Full reference restoration ran from **19:20:25 to 19:46:56 UTC** (26.5 minutes).
+All **31,266,439,168 bytes** were read back and matched raw SHA-256
+`35be4ea0a847505d390aad10c9c95e9d18406ddb11421bd726011d1bfb1a6679`.
+Receipt: `reference-restore-20261022T192023Z.json` in the v3 bundle. Whole-disk
+UDisks Rescan plus a bounded wait refreshed the partition metadata; GPT and all
+three original filesystem UUIDs/sizes passed verification. The config partition
+was unmounted and the reader safely powered off. Receipt:
+`reference-card-ready-after-bluetooth.json` in the v3 bundle.
+
+The card now contains the **fully readback-verified Radxa OS reference**. The
+owner moved it back and confirmed power connected. After boot and an
+owner-entered local SSH login, **all read-only runtime recovery checks passed**:
+Debian 12, kernel `6.1.84-10-rk2410-nocsf`, root `/dev/mmcblk1p3`, associated
+Wi-Fi, active SSH/hciattach/BlueZ, present and powered hci0, and AIC SDIO bindings
+`c8a1:0082` → `aicwf_sdio`, `c8a1:0182` → `aicbsp_sdio`. Receipt:
+`reference-status-after-bluetooth.json` in the v3 bundle. No password or terminal
+stream was captured. Radxa is left running the restored reference, with power
+connected. Card and runtime recovery are complete. Local finalization helper:
+`/tmp/radxa-finalize-v3-recovery.py` (completed).
 
 A v4 image fixing the process-control dependency has been built locally and
 reviewed; source changes are saved in local commit `123f1fb`. Selected candidate:
@@ -49,8 +64,11 @@ It has not been written or physically tested. Forty-one host checks and
 twenty-two ARM64/QEMU helper/stage checks pass, including an isolated PATH with
 no host kill, actual child signal delivery and packed-executable probes. No
 required review findings remain; an ESRCH-result mutation is detected. These
-checks do not establish physical Bluetooth acceptance. Complete this recovery
-before any further hardware test. The full v4 recipe and limits are at the top
+checks do not establish physical Bluetooth acceptance. Reference card and
+runtime recovery are complete as recorded above. The
+v3 temporary capture/restore helpers are completed historical helpers, not
+ready-to-run v4 helpers: adapt bundle/hash/UUID guards and obtain fresh device
+identity before the next write. The full v4 recipe and limits are at the top
 of [bluetooth-test.md](../../aa_wireless_dongle/board/radxa/zero3w/checks/bluetooth-test.md).
 
 ## Historical written-card/start checkpoint
