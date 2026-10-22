@@ -2,11 +2,11 @@
 
 ## Status
 
-Proposed for release; the engineering source baseline below is selected for subsequent integration as of 2026-10-21. Kernel/accessory/AIC linking, boot-chain packing and compiled-DT checks support that choice. Firmware redistribution terms remain unresolved, and the selected kernel/DT has not been booted on the board. Keep [task #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) open and retain downstream dependencies until the firmware decision and tracker review are complete. This record does not establish a working Buildroot image.
+Proposed for release; the engineering source baseline below is selected for subsequent integration as of 2026-10-21. Kernel/accessory/AIC linking, boot-chain packing, compiled-DT checks and three diagnostic Linux 6.12.114 boots support that choice. The 2026-10-22 boot-only experiment reached userspace with the selected DT; radio firmware/modules were absent. Firmware redistribution terms remain unresolved. Keep [task #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) open and retain downstream dependencies until the firmware decision and tracker review are complete. This record does not establish a working Buildroot dongle image.
 
 ## Date
 
-2026-10-14; hardware/version evidence and engineering source selection updated 2026-10-21.
+2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot evidence added 2026-10-22.
 
 ## Context
 
@@ -32,10 +32,10 @@ Existing Pi source pins and the Buildroot submodule remain unchanged.
 | Component | Selected immutable input | Verification and scope |
 | --- | --- | --- |
 | Build system | Buildroot 2026.02.3, commit `679b9ead7620bbf193620d1ebf56f53c1764d37a` | Retained repository baseline; no Buildroot update required by the checks |
-| Bootloader | U-Boot 2026.01, commit `127a42c7257a6ffbbd1575ed1cbaa8f5408a44b3`, release archive `u-boot-2026.01.tar.bz2`; `radxa-zero-3-rk3566_defconfig` | Isolated ARM64 build and packing pass; physical DDR training and boot pending |
+| Bootloader | U-Boot 2026.01, commit `127a42c7257a6ffbbd1575ed1cbaa8f5408a44b3`, release archive `u-boot-2026.01.tar.bz2`; `radxa-zero-3-rk3566_defconfig` | Isolated build/packing pass; card containing this boot chain reaches Linux diagnostic userspace; serial stage banners/training details not captured |
 | DDR / BL31 | rkbin commit `f43a462e7a1429a9d407ae52b4745033034a6cf9`; `bin/rk35/rk3566_ddr_1056MHz_v1.23.bin` and `bin/rk35/rk3568_bl31_v1.44.elf` | Exact blobs verified inside the packed bootloader; retain rkbin notices; OP-TEE not selected |
-| Kernel | Linux 6.12.114, commit `85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e`, release archive `linux-6.12.114.tar.xz` | Full ARM64 Image and modules link, including accessory/composite and external AIC modules |
-| Linux device tree | The same Linux input plus the board patches below; `rockchip/rk3566-radxa-zero-3w-aic8800d80.dtb` | AIC-only DT compiles and six compiled-property tests pass; generic DT unchanged; full schema and physical validation pending |
+| Kernel | Linux 6.12.114, commit `85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e`, release archive `linux-6.12.114.tar.xz` | Full Image/modules link; three physical boot-only snapshots reach diagnostic userspace; external modules not loaded by that experiment |
+| Linux device tree | The same Linux input plus the board patches below; `rockchip/rk3566-radxa-zero-3w-aic8800d80.dtb` | Six compiled-property tests pass; live DT/hog directions checked in three boots; generic DT unchanged; schema, electrical timing and radio operation remain unverified |
 | Radio driver | Radxa AIC tag `4.0+git20241119.06da8476-1`, commit `fc7cbdd1791416c2457fa27a59e508bf325c9c3f`; `src/SDIO/driver_fw/driver/aic8800` plus the patch series below | All three modules link; selected startup path uses BSP/fdrv without loading btlpm, matching the reference path |
 | Radio firmware/configuration | Only the six D80 files listed under [Firmware observed loading](#firmware-observed-loading), from that same AIC commit | All six SHA-256 values match the working reference card; selection remains subject to clarification of redistribution/source obligations |
 
@@ -94,15 +94,15 @@ source/patch compatibility assessment and an explicit update to this decision.
 
 | Required capability | Evidence supporting the choice | Physical verification still required |
 | --- | --- | --- |
-| MicroSD boot | Reference Radxa OS boots the actual no-eMMC board; selected U-Boot/DDR/BL31 builds and packs; kernel/DT contain microSD support | Boot selected components and the Buildroot partition/mount layout (#7–#8) |
-| Android accessory and uevents | Both shared patches plus the HID correction compile/link on the selected kernel; source contains `ACCESSORY=START` and gadget-state uevents | Peripheral-role binding, enumeration, negotiation and actual uevent delivery (#9) |
+| MicroSD boot | Reference boots; selected diagnostic card reaches Linux 6.12.114 userspace and writes FAT logs on the actual board | Complete Buildroot partition/mount layout and shipping userspace (#7–#8) |
+| Android accessory and uevents | Shared patches/HID correction link; source contains required uevents; mainline `fcc00000.usb` UDC is visible | Gadget binding, enumeration, negotiation and actual uevent delivery (#9) |
 | Wi-Fi AP | Pinned driver exposes AP operations; the reference advertises AP/AP-VLAN and operates as a Wi-Fi client | Selected driver/firmware on mainline, hostapd operation, channels and coexistence (#10–#12) |
-| Bluetooth | Exact firmware match; bounded reset/reattach and the corrected firmware-ready → reset → hciattach → BlueZ cold-start experiment passed on Radxa OS | Mainline GPIO acquisition, SDIO/UART startup, pairing and AP coexistence (#10–#12) |
+| Bluetooth | Exact firmware match and ordered startup pass on Radxa OS; mainline GPIO hog directions/UART1 observed; both AIC SDIO IDs appear in one boot snapshot | Matching mainline modules/firmware, HCI reset/attachment, pairing and AP coexistence (#10–#12) |
 
-The GPIO defaults are compiled requests, not measured mainline electrical
-behavior; wake IRQ/suspend support and slew-rate equivalence are not established.
-A controlled matching-kernel/DT boot with recovery can reduce feasibility risk,
-but complete image assembly and physical acceptance belong to the later tasks.
+The GPIO defaults now have mainline ownership/direction snapshots, without
+radio firmware or drivers. Electrical timing, wake IRQ/suspend support and
+slew-rate equivalence are not established. The controlled boot reduces
+feasibility risk; complete image assembly and acceptance belong to later tasks.
 Task #5 requires a source decision with evidence limits, not a completed dongle.
 Its remaining external blocker is the selected firmware's terms, tracked in
 [radxa-pkg/aic8800#109](https://github.com/radxa-pkg/aic8800/issues/109).
@@ -638,12 +638,68 @@ Packing verification decoded the Rockchip v2 header and checked its header/paylo
 
 The checked-in configuration matches the experiment's input. Buildroot's `check-package` processed its 21 lines without warnings (using an identical temporary `configs/*_defconfig` copy, because its parser intentionally ignores board-local defconfigs). The check produces no complete SD-card image and did not write to the owner's card or change the running Radxa OS.
 
+### Diagnostic mainline boots: 2026-10-22
+
+The owner booted the private 224 MiB diagnostic image containing the checked
+U-Boot/kernel/AIC DT and a minimal static BusyBox initramfs. Its SHA-256 is
+`7c6274d0d048d84760018a7f18424dc6db933d6cfb3c03be810adc336af74910`.
+No external modules or radio firmware were included. All written image bytes
+passed card readback verification before the physical test.
+
+The owner confirmed three separate power applications, using a computer USB-A
+port and a USB-A–USB-C cable to Radxa. The exact computer port/cable model and
+power-removal durations were not measured; this is not car USB-power evidence.
+Three distinct boot UUID directories were recovered from the FAT log partition,
+mounted read-only after the card returned. Each contains `result.txt`,
+`hardware.txt`, `dmesg.txt` and a 57,344-byte `live.dtb`. SHA-256-verified copies
+and analysis are private ignored output under
+`buildroot/output/radxa-boot-test-20261022-v3/evidence-20261022T094234Z/`.
+
+| Boot UUID prefix | Last saved kernel timestamp | AIC SDIO IDs in snapshot |
+| --- | --- | --- |
+| `15fd25c3` | 1.010634 s | Not yet present |
+| `2de0087f` | 1.645943 s | Both `c8a1:0082` and `c8a1:0182` |
+| `8bc5185a` | 1.017161 s | Not yet present |
+
+All three reach `/init` with Linux **6.12.114**, the V1.12M/AIC model and
+`EXPECTED_KERNEL=1` / `CAPTURE_FINISHED=1`. MicroSD partitions are readable and
+FAT logs persist. Live-DT checks confirm the selected GPIO hog directions and
+polarity. Runtime GPIO ownership shows PC1 output low, PB3/PB4 input high,
+PC0 reset physical high/deasserted and antenna PD3 physical low. PB3 differs
+from the reference's input-low/IRQ observation: this experiment has no radio
+driver/firmware and its hog provides no IRQ. Do not infer operating-radio
+equivalence from these uninitialized levels.
+
+UART1 appears at `fe650000.serial` / `ttyS1`, and `fcc00000.usb` is registered
+under `/sys/class/udc/`. No modules are listed. The later snapshot records
+SDR104 SDIO enumeration, successful phase tuning and both matching AIC SDIO
+functions. The other two captures end while the host is still initializing;
+their absence of SDIO entries is inconclusive. A later radio diagnostic must
+wait for explicit enumeration/readiness and record timeout separately before
+collecting the final snapshot.
+
+No priority 0–3 kernel messages or panic/Oops/BUG/call-trace signatures appear
+in the saved logs. Warnings concern unavailable ITS/LPIs, deprecated static GPIO
+bases and disabled DMA for the console UART. The owner reported the LED turning
+off after approximately five seconds. This is consistent with the init script's
+intentional sync/unmount/poweroff after capture; it is not evidence of a crash.
+The saved dmesg ends before the poweroff call, so completed shutdown and precise
+power-on-to-off timing are not independently logged.
+
+This establishes three brief diagnostic boots, not three acceptance cold starts,
+SDIO reliability, radio operation or a complete Buildroot dongle. Boot-stage
+serial banners were not captured. AP, Bluetooth HCI/reset/attachment/pairing,
+USB accessory negotiation, sustained operation and car power remain untested
+on mainline. The owner selected the verified previous-day full-card backup as
+the recovery point; recovery state belongs in the dated
+[boot-test handoff](../handoffs/2026-10-22-radxa-boot-test.md).
+
 ## Consequences and next evidence
 
 - Use the selected engineering baseline and patch order above for subsequent integration. Task #5 stays open pending firmware terms and tracker review; dependent tasks retain their prerequisites.
-- PCB V1.12M and AIC8800D80 identification, source/link compatibility, boot-chain packing and compiled-DT checks support the engineering choice. They do not establish operation of the selected kernel/DT on hardware.
+- PCB/radio identification, source/link compatibility, packing, compiled-DT checks and the three boot-only mainline snapshots support the engineering choice. Radio operation and a complete Buildroot runtime remain unverified.
 - Resolve the six firmware files' redistribution/source obligations before promoting this ADR to Accepted. Change the selected firmware/source baseline explicitly if the answer requires it.
-- MicroSD boot, AP/Bluetooth coexistence, USB enumeration/negotiation, power and connection reliability remain physical acceptance checks in subsequent tasks.
+- The complete Buildroot microSD layout/runtime, AP/Bluetooth coexistence, USB enumeration/negotiation, power and connection reliability remain physical acceptance checks in subsequent tasks.
 - Do not publish a supported image or close hardware criteria based on this source investigation.
 
 ## Verification performed

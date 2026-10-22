@@ -1,11 +1,15 @@
 # Controlled mainline boot experiment — prepared 2026-10-22
 
-This is a local, unbooted feasibility experiment for
+This is a local feasibility experiment for
 [issue #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5),
 using the inputs selected in [ADR-0001](../../../../../docs/adr/0001-radxa-zero3w-platform.md).
 It does not add a shipping Buildroot target or release image. The owner has
 only the current microSD card; a UART adapter is not assumed available.
-Preparation has not changed the card or the running Radxa.
+Preparation initially left the card untouched. The subsequent physical test
+and recovery state are recorded in the [dated handoff](../../../../../docs/handoffs/2026-10-22-radxa-boot-test.md):
+three boot snapshots reached Linux 6.12.114 diagnostic userspace. The image
+intentionally requests poweroff immediately after saving logs; the three-minute
+operator wait below is a conservative allowance, not a delay in the init script.
 
 ## Prepared artifact
 

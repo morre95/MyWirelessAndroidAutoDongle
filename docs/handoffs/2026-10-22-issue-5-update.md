@@ -63,9 +63,19 @@ pass. The recovery snapshot was reverified in full. The owner then selected
 that existing backup as the recovery point and moved the card to the reader.
 The diagnostic image was written and all 234,881,024 bytes passed SHA-256
 readback verification. The expected boot/log partitions were detected and
-safely unmounted; the reader was powered off. The image has not yet been booted
-on the board. Log collection and full restoration from the selected backup
-remain the next physical steps.
+safely unmounted; the reader was powered off.
+
+The physical follow-up recovered three separate boot snapshots, all reaching
+Linux **6.12.114** diagnostic userspace with the correct model/live-DT GPIO
+hogs, UART1 and `fcc00000.usb` UDC. All have expected-kernel/capture markers.
+One snapshot records both AIC SDIO functions (`c8a1:0082`, `c8a1:0182`); the
+other two are captured earlier during host initialization and do not settle
+SDIO reliability. No panic/Oops/BUG/call-trace or priority 0–3 messages occur
+in the saved logs. The observed LED-off behavior is consistent with the
+diagnostic's intentional poweroff, whose final steps are after the saved dmesg.
+These are brief boot-only snapshots, not acceptance cold starts or tests of
+radio/accessory operation. Raw logs/live DTs are preserved privately; full-card
+restoration to the owner-selected reference snapshot follows evidence capture.
 
 `main` remains `e7ef1f1`; the source-selection commits through `619536f` on
 `feature/radxa-zero3w-hci-reset` and the subsequent local preparation work have

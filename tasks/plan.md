@@ -3,12 +3,12 @@
 **Status:** Approved by the owner on 2026-10-14 (Phase 2: Plan).
 **Plan approval:** Owner confirmed: "ja jag godkänner planen".
 **Task breakdown:** Approved by the owner on 2026-10-14: "ja jag godkänner uppgiftslistan".
-**Execution:** Phase 4 continues with task #5. The received V1.12M/AIC8800D80 board boots the official Radxa OS diagnostic image; exact versions, firmware hashes and first source-compatibility results are recorded in ADR-0001. Final Buildroot source selection remains in progress.
+**Execution:** Phase 4 continues with task #5. ADR-0001 selects the engineering source baseline; firmware terms remain unresolved. Three 2026-10-22 boot-only snapshots reach Linux 6.12.114 userspace with the AIC-specific DT. Full Buildroot runtime, radio and accessory operation remain unverified; downstream dependencies stay in place.
 **Date:** 2026-10-14
 **Specification:** [Approved hardware-support spec, issue #4](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/4).
 **Target:** Radxa ZERO 3W, 1 GB RAM, no eMMC, microSD boot.
 **Task tracker:** GitHub Issues in `morre95/MyWirelessAndroidAutoDongle`.
-**Session handoff:** [2026-10-21 resume record](../docs/handoffs/2026-10-21-radxa-zero3w.md) records local commits, hardware state, verified checks and the open firmware inquiry.
+**Session handoff:** [2026-10-22 boot-test record](../docs/handoffs/2026-10-22-radxa-boot-test.md) records the physical boot evidence and current recovery state. The [2026-10-21 source-selection record](../docs/handoffs/2026-10-21-radxa-zero3w.md) retains the earlier commit/reference details and firmware inquiry.
 
 ## Overview and assumptions
 

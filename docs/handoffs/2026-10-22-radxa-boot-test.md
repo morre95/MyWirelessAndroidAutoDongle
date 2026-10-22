@@ -3,10 +3,10 @@
 Continue from the [prepared test procedure](../../aa_wireless_dongle/board/radxa/zero3w/checks/boot-test.md)
 and [source-selection handoff](2026-10-21-radxa-zero3w.md).
 
-## Current physical state
+## Card preparation record
 
-The owner's single microSD card now contains the **boot-only diagnostic image**,
-not Radxa OS. The owner moved it to the reader and explicitly selected the
+The owner's single microSD card was written with the **boot-only diagnostic image**
+for this experiment. The owner moved it to the reader and explicitly selected the
 existing backup made yesterday as the recovery point. This supersedes the
 procedure's fresh-backup step for this run; no new full-card backup was made.
 Do not request another backup merely because the generic procedure says fresh.
@@ -28,27 +28,64 @@ SHA-256 7c6274d0d048d84760018a7f18424dc6db933d6cfb3c03be810adc336af74910
 
 The system detected DOS partitions `AICBOOT` (128 MiB ext4) and `AICBOOTLOGS`
 (64 MiB FAT32). Both desktop automounts were unmounted, and UDisks successfully
-powered off the reader. The card is ready to remove. No physical mainline boot
-or collected boot log is established yet.
+powered off the reader. At that checkpoint the card was ready to remove; the
+physical results below were collected subsequently.
 
 Private write/readback evidence is saved under
 `buildroot/output/radxa-boot-test-20261022-v3/card-write-20261022T093418Z.json`.
 The artifact and manifest remain beside it. Do not publish private access or
 configured-card recovery files.
 
-## Next physical step
+## Physical boot and evidence
 
-Insert the card in the **unpowered Radxa**, connect the known bench power and
-allow at least three minutes. This image provides no Wi-Fi or SSH. Remove power
-and return the card to the computer's reader so the log partition can be read.
-The image attempts to flush/unmount its logs and power off without rebooting.
+The owner moved the card to Radxa and observed its LED going dark after about
+five seconds, then returned the card to the reader. The owner confirmed three
+separate power applications from a computer USB-A port through a USB-A–USB-C
+cable. Exact port/cable models and power-removal durations were not measured.
+The diagnostic deliberately
+flushes/unmounts logs and requests poweroff immediately after capture; it does
+not wait three minutes. The operator's three-minute wait was a conservative
+allowance. No exact power-on/off timing or boot-stage serial banner was captured.
 
-Reidentify the card on return; do not reuse an earlier device name. Preserve
-the FAT logs read-only before repair, rewriting or restoring anything. An empty
-log partition is inconclusive without UART; do not claim boot failure at a
-particular stage or perform repeated blind writes. Follow the prepared
-procedure's evidence interpretation and full-card restoration steps using the
-owner-selected `radxa-recovery/radxa-os-20261021-172921.img.zst` backup.
+The returning card matched its recorded identity and diagnostic partitions.
+Both automatic desktop mounts were unmounted; `AICBOOTLOGS` was remounted
+read-only. Three boot UUID directories, each with all four expected files,
+were copied privately and SHA-256-verified under
+`buildroot/output/radxa-boot-test-20261022-v3/evidence-20261022T094234Z/`.
+`evidence.json` records hashes/sizes; `analysis.json` records the checks.
+
+All three reach Linux 6.12.114 diagnostic userspace, record expected-kernel and
+capture-finished markers, expose UART1 and `fcc00000.usb` UDC, and show the
+selected live-DT GPIO hogs/directions. PC1 is output low, PC0 reset physical
+high/deasserted, antenna PD3 output low and PB3/PB4 input high. PB3's level/IRQ
+differs from the initialized Radxa OS reference; no radio modules/firmware are
+included in this test, so these snapshots do not establish operating-radio
+pin equivalence.
+
+Boot `2de0087f-418a-4aac-a684-c4369149f931` records SDIO IDs `c8a1:0082` and
+`c8a1:0182`, with its last saved kernel line at 1.645943 s. The other two logs
+end around 1.01 s while the SDIO host is still initializing. Missing SDIO entries
+in those early captures are inconclusive; the next diagnostic must wait for
+explicit enumeration/readiness and report timeout before taking its final logs.
+
+There are no saved priority 0–3 messages or panic/Oops/BUG/call-trace signatures.
+Warnings concern ITS/LPIs, static GPIO bases and console UART DMA. The observed
+LED-off behavior is consistent with intentional poweroff after successful
+capture. Final shutdown occurs after the saved dmesg, so it is not independently
+logged. These are three brief boots, not three acceptance cold starts or proof
+of mainline Wi-Fi/Bluetooth/accessory operation.
+
+## Recovery
+
+The planned full-card restoration from the owner-selected previous-day backup
+is in progress. A separate private copy of the post-boot diagnostic card region
+is preserved before rewriting, in addition to the extracted logs. Final restore
+and full readback results must be recorded here before claiming recovery complete.
+
+Recovery uses `radxa-recovery/radxa-os-20261021-172921.img.zst`. After verified
+restoration and safe reader poweroff, the owner must return the card to Radxa
+for the SSH/Wi-Fi/hciattach/BlueZ reference recheck. Reidentify devices on each
+card insertion rather than reusing an earlier device name.
 
 The status update remains a [local draft](2026-10-22-issue-5-update.md).
 No GitHub publication, push or merge was performed. Firmware terms and #5's
