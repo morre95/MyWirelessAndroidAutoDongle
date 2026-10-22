@@ -1,8 +1,9 @@
-# Prepared update for issue #5 — 2026-10-22
+# Published update for issue #5 — 2026-10-22
 
-Local draft for [issue #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5).
-Not published. The text below can be appended to the existing issue without
-replacing its history or changing its acceptance boxes/dependencies.
+Published on the owner's explicit instruction as
+[this comment on #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5#issuecomment-6338740112).
+The comment was read back and matched the body below exactly. The issue stays
+open; its existing body, acceptance boxes and dependencies were not changed.
 The separately prepared [boot experiment](../../aa_wireless_dongle/board/radxa/zero3w/checks/boot-test.md)
 records the local diagnostic artifact and single-card recovery procedure.
 
@@ -33,8 +34,9 @@ Since the last issue update:
   monotonic clock; this is not Buildroot/mainline cold-start acceptance.
 - The AIC-only DT now requests the observed GPIO directions, pulls, Schmitt
   settings and measured drive-register levels. Six compiled-DT tests pass;
-  the generic ZERO 3W DTB remains byte-identical (`2247ca3`). The selected DT
-  has not been booted. GPIO acquisition and radio behavior on mainline remain
+  the generic ZERO 3W DTB remains byte-identical (`2247ca3`). At that preparation
+  checkpoint the selected DT had not been booted; the physical follow-up below
+  now records mainline GPIO ownership/directions. Radio operation remains
   unverified.
 
 On 2026-10-22, all **40** existing focused tests passed again: 13 UART-helper,
@@ -87,4 +89,5 @@ persists; it was not changed or mistaken for a newly clean startup sequence.
 
 `main` remains `e7ef1f1`; the source-selection commits through `619536f` on
 `feature/radxa-zero3w-hci-reset` and the subsequent local preparation work have
-not been pushed. This draft does not imply a push, merge or hardware result.
+not been pushed. No push or merge was performed; hardware evidence is limited
+to the diagnostic observations above.

@@ -116,6 +116,9 @@ connection was closed after the checks; local access metadata now records the
 verified reference state. Reidentify devices on each insertion rather than
 reusing an earlier name.
 
-The status update remains a [local draft](2026-10-22-issue-5-update.md).
-No GitHub publication, push or merge was performed. Firmware terms and #5's
-dependent-task prerequisites remain unresolved.
+The owner subsequently authorized publication of the
+[status update](2026-10-22-issue-5-update.md), now verified as
+[this comment on #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5#issuecomment-6338740112).
+No push or merge was performed. Firmware terms and #5's dependent-task
+prerequisites remain unresolved. The next authorized work is local radio-test
+preparation; it does not authorize writing the card or interrupting Radxa OS.
