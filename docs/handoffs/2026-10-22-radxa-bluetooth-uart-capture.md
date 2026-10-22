@@ -5,10 +5,16 @@
 The owner authorized the next diagnostic after the
 [v2 attachment failure and verified recovery](2026-10-22-radxa-bluetooth-test.md).
 **The card now contains the written and readback-verified v3 diagnostic.**
-The reader is safely powered off; the owner has been instructed to make one
-test start with the phone ready and keep power connected for twelve minutes.
-**V3 power-on has not yet been reported; no physical result is established.**
-The reference is currently not restored on the card.
+The owner reported connecting Radxa power; that report was recorded at
+**19:03:59 UTC / 21:03:59 Europe/Stockholm**. Keep power connected for at least
+twelve minutes from that report: **19:15:59 UTC / 21:15:59 local** before
+disconnecting power and moving the card. One start was requested, with the
+phone's Bluetooth settings open. The owner reports that the test device is
+not visible in the phone Bluetooth scan; no discovery/pairing success is
+observed. LED behavior has not been supplied. Captured logs are still needed
+to localize this run's failure. Private timing/operator state is
+`operator-test-session.json` in the selected v3 bundle. The reference is
+currently not restored on the card.
 
 A guarded SSH/TTY shutdown request returned zero at
 18:51:05 UTC after checking reference kernel/root; the owner entered credentials
