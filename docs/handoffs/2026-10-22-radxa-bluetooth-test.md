@@ -1,6 +1,110 @@
 # Next mainline Bluetooth test — 2026-10-22
 
-## Resume checkpoint
+## Physical test and recovery — 2026-10-22
+
+This checkpoint supersedes the card-location and preparation-only state in the
+historical checkpoint below. The owner confirmed Radxa power disconnected,
+the card in the reader and the Android phone ready. Fresh inventory matched
+reader model/serial, 31,266,439,168-byte capacity and all three reference
+partition UUIDs/sizes. The selected Bluetooth v2 image and compressed recovery
+backup matched their SHA-256 values below. All eight actual-image checks passed
+again; the other sixteen checks were not rerun in this continuation.
+
+The guarded writer was adapted to Bluetooth v2, with fixed image/backup hashes
+and all three reference-partition guards. The image was written and all
+**234,881,024 bytes** read back with matching SHA-256. The stale backup GPT
+signature was cleared. Private write receipt:
+`buildroot/output/radxa-bluetooth-test-20261022-v2/card-write-20261022T175355Z.json`.
+The resulting DOS partition table and filesystems were verified:
+
+| Partition | Filesystem | UUID | Size (bytes) |
+| --- | --- | --- | ---: |
+| AICBOOT | ext4 | `820ab2f1-d317-4dfb-a6d5-1402b80b0cd3` | 134,217,728 |
+| AICBOOTLOGS | FAT | `CB4E-23E0` | 67,108,864 |
+
+Both filesystems were unmounted and the reader safely powered off. Receipt:
+`buildroot/output/radxa-bluetooth-test-20261022-v2/card-ready-for-bluetooth-test.json`.
+The owner then reported connecting Radxa power; that report was recorded at
+**17:55:59 UTC / 19:55:59 Europe/Stockholm**. Allow at least twelve minutes from
+that report: **18:07:59 UTC / 20:07:59 local** before disconnecting power. One
+start was requested, with the same computer USB-A–USB-C cable. At 17:58:46 UTC
+the owner reported that the phone could not find Radxa. The expected advertised
+name is `Radxa Mainline Test`; no discovery or pairing success is observed.
+Captured logs now show failure before the pairing window. LED behavior
+has not been reported. Private operator state is in
+`buildroot/output/radxa-bluetooth-test-20261022-v2/operator-test-session.json`.
+
+The owner reported the card back in the reader at about 18:00:47 UTC, roughly
+five minutes after the power-on report, before the requested twelve-minute
+minimum. Exact physical power-on/off times are not independently known. Keep
+this limitation with the result; a completed diagnostic shutdown is not proven.
+
+Fresh reader identity and both test UUIDs matched. All **ten captured files**
+were copied from a read-only log mount and individually hash-verified into
+`buildroot/output/radxa-bluetooth-test-20261022-v2/evidence-20261022T180105Z/`.
+Private `evidence.json` and `analysis.json` record provenance, hashes and findings.
+One boot directory was present. Embedded `inputs.json` matches the selected
+image manifest.
+
+- Radio firmware readiness and HCI Reset succeeded at about 14.85 seconds uptime.
+- All eight Bluetooth module load commands returned success; the last progress
+  entry is `14.98 hci_attach`.
+- `bluetooth-result.txt` records `BT_PAIRING_RESULT=failed`, `STAGE=hci_attach`,
+  `EXIT_CODE=11`. This gate fails if the attachment child is no longer alive or
+  hci0 has not appeared within the bounded wait; these logs do not distinguish
+  those cases. `hciattach.log` is empty.
+- D-Bus/BlueZ/agent output and `bluez-objects.txt` are absent. No pairing window
+  or discovery success is established. This accounts for the phone observation
+  without attributing the failure to the phone.
+- Final `capture-result.txt`, `dmesg.txt`, `hardware-after-cleanup.txt` and
+  `live.dtb` are absent. The exact UART failure and reason the cleanup/final
+  capture did not finish remain unknown; do not infer a kernel hang as proven.
+
+Before restoration, the entire 234,881,024-byte postboot test range was preserved
+as `postboot-card-20261022T180148Z.img` in the selected bundle, SHA-256
+`66063c4b5f3c64abf6c8651dc605cab9f2ed7a3a411cf9d26d140a22d412424f`.
+Full reference restoration ran from **18:01:50 to 18:28:20 UTC** (about
+26.5 minutes). All **31,266,439,168 bytes** were read back and matched raw SHA-256
+`35be4ea0a847505d390aad10c9c95e9d18406ddb11421bd726011d1bfb1a6679`.
+Receipt: `reference-restore-20261022T180148Z.json` in the bundle. A whole-disk
+UDisks `Block.Rescan` refreshed stale test-partition metadata; its asynchronous
+refresh briefly left the first verification attempt seeing stale data. A fresh
+inventory and repeated guarded finalization verified GPT and all three original
+reference filesystem UUIDs/sizes. The mounted config partition was unmounted
+and the reader safely powered off. Receipt:
+`reference-card-ready-after-bluetooth.json` in the bundle.
+
+The card now contains the **fully readback-verified Radxa OS reference**, not
+the Bluetooth test image. The owner moved it back to Radxa and confirmed power
+connected. After startup and an owner-entered local SSH login, the read-only
+runtime probe **passed every recovery check**: Debian 12, kernel
+`6.1.84-10-rk2410-nocsf`, root `/dev/mmcblk1p3`, associated Wi-Fi, active SSH,
+hciattach and BlueZ, present/powered hci0 and both AIC SDIO bindings
+(`c8a1:0082` → `aicwf_sdio`, `c8a1:0182` → `aicbsp_sdio`). Receipt:
+`reference-status-after-bluetooth.json` in the bundle. No password or terminal
+stream was captured. Radxa is left running the restored reference; physical
+power remains connected. Recovery is complete; mainline Bluetooth attachment
+and pairing remain unresolved.
+
+Helpers are `/tmp/radxa-capture-bluetooth.py` (completed) and
+`/tmp/radxa-restore-after-bluetooth.py` (completed). The latter uses the
+new Bluetooth filesystem UUID guards above; the capture helper finds the reader
+by model/serial/capacity. Reidentify the device path before any future use.
+Keep phone identifiers and pairing evidence private; no successful test bond
+was observed. No issue was updated or image published.
+
+The next diagnostic should capture kernel/controller/process state at attachment
+failure **before child cleanup**, including the attachment process state and
+wait location. Preserve a bounded capture path and exclude Bluetooth keys. The
+present evidence does not justify changing baudrate/flow control, enlarging the
+discovery window or weakening the hci0 gate as a fix. The built kernel already
+has `CONFIG_BT_HCIUART_H4=y`; a missing H4 selection is not supported by the
+saved build configuration. Reproduce with improved evidence before choosing a
+UART fix. Reference recovery and its runtime check are complete; any next
+physical diagnostic must repeat identity-checked writing and preserve this
+same selected recovery point.
+
+## Historical preparation checkpoint
 
 The owner requested a handoff and will continue this test later. **Preparation
 is complete; no Bluetooth image has been written or booted.** Card movement to
