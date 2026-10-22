@@ -1,5 +1,10 @@
 # Next mainline Bluetooth test — 2026-10-22
 
+The authorized v3 follow-up is now prepared; its current physical state and
+resume instructions are in the
+[UART capture handoff](2026-10-22-radxa-bluetooth-uart-capture.md). The record
+below preserves the completed v2 test and verified recovery.
+
 ## Physical test and recovery — 2026-10-22
 
 This checkpoint supersedes the card-location and preparation-only state in the

@@ -1,5 +1,82 @@
 # Mainline Bluetooth attachment diagnostic — 2026-10-22
 
+## Selected follow-up: UART failure capture (v3)
+
+The v2 physical test passed firmware readiness/HCI Reset but failed the
+`hci_attach` gate (11), before D-Bus/BlueZ/pairing. Final capture was absent.
+Full reference restoration and its runtime checks passed. See the
+[v2 hardware record](../../../../../docs/handoffs/2026-10-22-radxa-bluetooth-test.md).
+
+The next selected private image is
+`buildroot/output/radxa-bluetooth-test-20261022-v3/radxa-bluetooth-test.img`,
+234,881,024 bytes, SHA-256
+`9d30fc90d6c2ef38dd6ab2bba332677727a68f422bd6d4e0155ae690f731a32a`.
+The `v3-pre-review` and `v3-pre-pairing-bound` bundles are superseded local
+candidates. The detailed current checkpoint is the
+[UART capture handoff](../../../../../docs/handoffs/2026-10-22-radxa-bluetooth-uart-capture.md).
+
+V3 keeps the same kernel/DT/boot chain, radio payload, eight Bluetooth modules,
+BlueZ 5.79, 1.5 Mbaud/RTS-CTS attachment and 180-second pairing agent. It adds
+snapshots before attachment, at failure **before cleanup**, and after cleanup.
+They record kernel logs, the attachment PID's status/wchan/syscall/stack,
+module/interrupt/controller state and the live DT. No packet, process-memory or
+bond-storage capture is added. The meaning of process state and wait/stack
+files follows the [kernel proc documentation](https://www.kernel.org/doc/html/v6.12/filesystems/proc.html).
+
+`aic-bounded-run.c` supervises each snapshot (5 seconds), Bluetooth module load
+(10 seconds), pairing agent (210 seconds, including its existing internal
+180-second window) and final snapshot (10 seconds) independently. It kills the
+worker's process group at the deadline and uses only nonblocking child reaping,
+with a 200 ms reap grace. Nested supervisors fail before starting a worker;
+there is no enclosing supervisor around the entire Bluetooth shell stage.
+Cleanup allows one second after TERM and three bounded one-second polls after
+KILL. It waits only for exited/zombie children and records any unreaped PID as
+failure 16, preserving the original stage failure in `failure-result.txt`.
+These budgets do not guarantee recovery from a system/kernel/storage hang.
+
+`CAPTURE_FINISHED=1` now requires final snapshot exit zero; individual artifact
+read/redirection failures produce a failed snapshot status. Capture completion
+still does not establish pairing success. Inspect `failure-process.txt`,
+`failure-kernel.txt`, `failure-snapshot-exit.txt`, `failure-result.txt` and
+`cleanup-result.txt`, alongside the existing success gates. A zero-byte
+`hciattach.log` is not enough to locate the blocked operation.
+
+All **35 local checks pass**: six native supervisor, eleven stage, nine agent
+and nine actual-image checks. Six supervisor tests also pass with the actual
+ARM64 executable under QEMU, and eleven stage tests pass with the target
+ARM64 BusyBox ash. This includes simulated non-terminating cleanup, child exit
+status, failed snapshot artifacts and rejected nesting; it does not reproduce
+an actual uninterruptible task. Independent review reproduced and resolved
+false snapshot success and nested-worker escape, and a process-presence
+mutation was caught by the stage test. The image has not yet been physically
+tested. Use the same identity-checked writer/recovery and one-start/twelve-minute
+physical procedure below.
+
+Build the helper with the same pinned Buildroot external toolchain and strict
+warnings used for the pairing agent, without changing userspace inputs:
+
+```sh
+docker run --rm --network none \
+  --mount "type=bind,source=$PWD,target=/app,readonly" \
+  --mount "type=bind,source=$PWD/buildroot/output,target=/app/buildroot/output" \
+  --workdir /app aawg-buildroot:latest \
+  /app/buildroot/output/radxa-bluetooth-userspace-container/host/bin/aarch64-linux-gcc \
+  -std=c11 -O2 -Wall -Wextra -Werror -Wconversion -Wshadow \
+  aa_wireless_dongle/board/radxa/zero3w/checks/aic-bounded-run.c \
+  -o /app/buildroot/output/radxa-bluetooth-test-prep/aic-bounded-run
+```
+
+The generator pins source SHA-256
+`6dcc09c264112d83e5f0590246936d0f76817a30b4530a21b2eaa482323b5e4f`
+and executable SHA-256
+`bf4019e9511459d91b8cdde4f1e1b84d4e2a0bc9a9b907d53a4a86e73b3c3c6a`.
+Assemble into a fresh directory with `make-bluetooth-test.py --output ...` and
+set `RADXA_BLUETOOTH_TEST_DIR` for the actual-image suite when using a different
+path. Run `tests/radxa_bounded_run_test.py`, `tests/radxa_bluetooth_stage_test.py`,
+`tests/radxa_pairing_agent_test.py` and `tests/radxa_bluetooth_image_test.py`.
+
+## Historical v2 preparation
+
 Preparation follows the owner's authorization after the successful
 [radio reset test](../../../../../docs/handoffs/2026-10-22-radxa-radio-test.md).
 The reference Radxa OS is left unchanged during local build preparation.
