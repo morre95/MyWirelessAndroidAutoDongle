@@ -1,0 +1,58 @@
+# Prepared update for issue #5 — 2026-10-22
+
+Local draft for [issue #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5).
+Not published. The text below can be appended to the existing issue without
+replacing its history or changing its acceptance boxes/dependencies.
+
+---
+
+## Engineering source selection and startup evidence (2026-10-22)
+
+The engineering baseline is selected in `docs/adr/0001-radxa-zero3w-platform.md`
+at local commit `2b8efb9`. It retains Buildroot **2026.02.3** and selects
+Linux **6.12.114**, U-Boot **2026.01**, the existing rkbin pin with RK3566 DDR
+**1.23** / RK3568 BL31 **1.44**, the separate V1.12M/AIC8800D80 DT with patches
+through `0005`, and AIC commit `fc7cbdd1791416c2457fa27a59e508bf325c9c3f` with
+the six reference-matched D80 firmware/configuration files. Immutable inputs,
+hashes, patch order and evidence limits are recorded in the ADR.
+
+Since the last issue update:
+
+- The firmware-readiness predicate now checks live BSP/fdrv initialization,
+  normal BSP work mode and the matching D80 SDIO interface/driver. Its 17 host
+  tests cover the reference's actual sysfs layout. It was also checked read-only
+  on Radxa OS. This is an ordering predicate, not proof of firmware identity or
+  UART responsiveness (`9caf011`, `9355a6d`).
+- One guarded **Radxa OS 6.1.84** cold start succeeded in this order: readiness
+  at 10.677 s, successful bounded HCI Reset at 10.722 s, hciattach active at
+  11.156 s and BlueZ active at 11.897 s. Automatic recovery restored the vendor
+  configuration; temporary experiment files were removed. Four host tests cover
+  rollback failures (`2d35d0d`). These timestamps share one boot's journal
+  monotonic clock; this is not Buildroot/mainline cold-start acceptance.
+- The AIC-only DT now requests the observed GPIO directions, pulls, Schmitt
+  settings and measured drive-register levels. Six compiled-DT tests pass;
+  the generic ZERO 3W DTB remains byte-identical (`2247ca3`). The selected DT
+  has not been booted. GPIO acquisition and radio behavior on mainline remain
+  unverified.
+
+On 2026-10-22, all **40** existing focused tests passed again: 13 UART-helper,
+17 readiness, four startup-recovery and six compiled-DT tests. The UART helper
+also compiled with the documented strict host warning flags. This rerun did
+not rebuild the full kernel or add new physical evidence.
+
+The source-selection capability table now separates source/build evidence
+from physical verification for microSD, accessory/uevents, AP and Bluetooth.
+The remaining external blocker is the selected firmware's redistribution/source
+terms. [radxa-pkg/aic8800#109](https://github.com/radxa-pkg/aic8800/issues/109)
+was checked on 2026-10-22: still open, with no comments. No firmware permission
+is inferred from package metadata or the act of asking.
+
+Keep #5 open, the ADR Proposed for release, and downstream dependencies intact.
+The first acceptance criterion still includes unresolved firmware licensing;
+the capability evidence criterion needs tracker review against the ADR before
+changing its checkbox. A complete Buildroot image, AP/pairing/coexistence,
+accessory negotiation and car/reliability acceptance belong to later issues.
+
+At this checkpoint, `main` remains `e7ef1f1` and the nine commits through
+`619536f` on `feature/radxa-zero3w-hci-reset` are local only. This draft and
+subsequent boot-test preparation do not imply a push, merge or hardware result.
