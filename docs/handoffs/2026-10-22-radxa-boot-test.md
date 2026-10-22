@@ -142,4 +142,6 @@ diagnostic again. Continue with the
 That radio experiment has since completed successfully for firmware readiness
 and HCI Reset. Its logs and raw card snapshot were preserved, and full Radxa OS
 recovery/readback verification and safe ejection completed again. The linked
-radio handoff records the result, remaining warnings and pending reference boot.
+radio handoff records the result and remaining warnings. The owner has now
+booted the restored reference again; read-only SSH verified associated Wi-Fi,
+active hciattach/BlueZ and powered hci0. See that handoff for the latest evidence.

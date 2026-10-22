@@ -120,6 +120,23 @@ filesystem identities were verified. The config desktop automount was unmounted
 and UDisks successfully powered off the reader. The card now contains **Radxa OS
 again**, is safe to remove and is no longer a radio diagnostic card.
 
-Return it to the unpowered Radxa and boot the reference. Post-recovery SSH,
-Wi-Fi association, hciattach and powered-hci0/BlueZ checks are pending that
-physical step; they have not been inferred from the raw-card verification.
+The owner subsequently returned the card to Radxa. A read-only SSH check with
+the persisted host key strictly verified confirmed Debian 12, reference kernel
+`6.1.84-10-rk2410-nocsf` and root on `/dev/mmcblk1p3`, at 117.1 s uptime.
+`wlan0` was associated with operstate up. SSH, hciattach and BlueZ were active;
+`hci0` was present and its BlueZ `Powered` property was true.
+
+BSP/fdrv were live in normal work mode, both expected SDIO functions were bound
+to their expected drivers, and btlpm was absent. The temporary startup-test
+directory was absent. The reference reset unit was inactive/dead with
+`Result=success` and `ExecMainStatus=0`; this status alone does not establish
+that its reset command executed. The earlier failed/status-2 snapshot was not
+reproduced in this check, and no reset-service fix or restart was performed.
+
+Private evidence is
+`buildroot/output/radxa-radio-test-20261022-v2/reference-status-20261022T124019Z.json`.
+All restored-reference checks passed. The owner entered the password directly
+in a local SSH terminal; it was not captured or stored. The temporary SSH master
+was closed after verification. Radxa remains running the restored reference;
+mainline AP, Bluetooth attachment/pairing and sustained operation remain later
+tests rather than conclusions from this reference check.
