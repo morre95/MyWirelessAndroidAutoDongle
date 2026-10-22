@@ -120,5 +120,16 @@ The owner subsequently authorized publication of the
 [status update](2026-10-22-issue-5-update.md), now verified as
 [this comment on #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5#issuecomment-6338740112).
 No push or merge was performed. Firmware terms and #5's dependent-task
-prerequisites remain unresolved. The next authorized work is local radio-test
-preparation; it does not authorize writing the card or interrupting Radxa OS.
+prerequisites remain unresolved.
+
+Local radio-test preparation is complete in commit `48629fc`; see the
+[radio-test procedure](../../aa_wireless_dongle/board/radxa/zero3w/checks/radio-test.md)
+for inputs, checksums, limitations and later card/recovery steps. The selected
+private image is `buildroot/output/radxa-radio-test-20261022-v2/radxa-radio-test.img`,
+SHA-256 `1d1ab91f8e31dd9ac1fa60f3159914f98c2f5b4509868b15784f42f0a22ee90f`.
+All 15 radio tests pass; this includes failure ordering, log-write/sync failures
+and inspection of the packed payload. The static ARM64 helper's hardware runtime
+is pending: QEMU user emulation rejects its `TIOCGEXCL` ioctl, while the native
+host UART suite passes. No radio-test image has been flashed or booted, and the
+running reference remains untouched. Preparation does not authorize writing the
+card or interrupting Radxa OS.
