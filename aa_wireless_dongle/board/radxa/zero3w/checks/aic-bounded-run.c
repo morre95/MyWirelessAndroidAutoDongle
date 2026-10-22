@@ -2,9 +2,11 @@
 /* A diagnostic deadline must not wait forever for an unkillable kernel task. */
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
+#include <limits.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -29,6 +31,23 @@ static void kill_group(pid_t child)
 int main(int argc, char **argv)
 {
     char *end = NULL;
+    if (argc == 4 && !strcmp(argv[1], "--signal")) {
+        int number;
+        if (!strcmp(argv[2], "0")) number = 0;
+        else if (!strcmp(argv[2], "TERM")) number = SIGTERM;
+        else if (!strcmp(argv[2], "KILL")) number = SIGKILL;
+        else return 2;
+        errno = 0;
+        long target = strtol(argv[3], &end, 10);
+        if (errno || !end || !*argv[3] || *end || target <= 1 || target > INT_MAX ||
+            strspn(argv[3], "0123456789") != strlen(argv[3]))
+            return 2;
+        if (!kill((pid_t)target, number)) return 0;
+        if (errno == ESRCH) return 1;
+        if (!number && errno == EPERM) return 0;
+        perror("diagnostic signal");
+        return 3;
+    }
     long seconds = argc > 1 ? strtol(argv[1], &end, 10) : 0;
     if (argc < 3 || !end || !*argv[1] || *end || seconds < 1 || seconds > 600 ||
         getenv("RADXA_BOUNDED_RUN_ACTIVE"))

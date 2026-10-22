@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKS = ROOT / 'aa_wireless_dongle/board/radxa/zero3w/checks'
@@ -28,7 +29,7 @@ class BluetoothImage(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.directory = Path(os.environ.get('RADXA_BLUETOOTH_TEST_DIR', str(
-            ROOT / 'buildroot/output/radxa-bluetooth-test-20261022-v3')))
+            ROOT / 'buildroot/output/radxa-bluetooth-test-20261022-v4')))
         cls.manifest = json.loads((cls.directory / 'manifest.json').read_text())
         archive = gzip.decompress((cls.directory / 'boot/initramfs.cpio.gz').read_bytes())
         cls.components = []; offset = 0
@@ -97,13 +98,30 @@ class BluetoothImage(unittest.TestCase):
         self.assertEqual(extract(final, 'aic-bluetooth-snapshot.sh'),
                          (CHECKS / 'aic-bluetooth-snapshot.sh').read_bytes())
         inputs = json.loads(extract(final, 'bluetooth-inputs.json'))
-        self.assertEqual(inputs['diagnostic_version'], 3)
+        self.assertEqual(inputs['diagnostic_version'], 4)
         init = extract(final, 'init')
         self.assertIn(b'if /bin/sh /aic-bluetooth-test.sh', init)
         self.assertIn(b'aic-bounded-run 10 /bin/sh /aic-bluetooth-snapshot.sh', init)
         self.assertIn(b'capture_finished=0', init)
         self.assertIn(b'aic-bounded-run 210 aic-pairing-test',
                       extract(final, 'aic-bluetooth-test.sh'))
+
+    def test_packed_native_signal_probe_with_no_shell_kill(self):
+        qemu = shutil.which('qemu-aarch64-static')
+        self.assertIsNotNone(qemu)
+        with tempfile.TemporaryDirectory() as tmp:
+            busybox = Path(tmp) / 'busybox'
+            control = Path(tmp) / 'control'
+            busybox.write_bytes(extract(self.components[1], 'bin/busybox')); busybox.chmod(0o700)
+            control.write_bytes(extract(self.components[2], 'bin/aic-bounded-run')); control.chmod(0o700)
+            no_tools = dict(os.environ, PATH=tmp)
+            r = subprocess.run([qemu, str(busybox), 'sh', '-c', 'kill -0 $$'],
+                               env=no_tools, capture_output=True, timeout=3)
+            self.assertEqual(r.returncode, 127)
+            sysroot = ROOT / 'buildroot/output/radxa-bluetooth-userspace-container/target'
+            r = subprocess.run([qemu, '-L', str(sysroot), str(control), '--signal', '0', str(os.getpid())],
+                               env=no_tools, capture_output=True, timeout=3)
+            self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_init_refuses_host_execution(self):
         r = subprocess.run(['sh', str(CHECKS / 'bluetooth-test-init.sh')], capture_output=True, text=True)

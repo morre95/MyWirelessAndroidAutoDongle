@@ -63,6 +63,23 @@ class BoundedRun(unittest.TestCase):
         r = self.run_command('1', 'sh', '-c', 'kill -TERM $$')
         self.assertEqual(r.returncode, 128 + signal.SIGTERM)
 
+    def test_native_process_probe_and_signals(self):
+        for name, number in [('TERM', signal.SIGTERM), ('KILL', signal.SIGKILL)]:
+            with subprocess.Popen(['sleep', '30']) as process:
+                try:
+                    self.assertEqual(self.run_command('--signal', '0', str(process.pid)).returncode, 0)
+                    self.assertEqual(self.run_command('--signal', name, str(process.pid)).returncode, 0)
+                    self.assertEqual(process.wait(timeout=1), -number)
+                    self.assertEqual(self.run_command('--signal', '0', str(process.pid)).returncode, 1)
+                finally:
+                    if process.poll() is None: process.kill()
+
+    def test_signal_mode_rejects_invalid_and_group_targets(self):
+        for pid in ('0', '1', '-1', '2147483648', 'abc', '', '+2', ' 2', '2x'):
+            with self.subTest(pid=pid):
+                self.assertEqual(self.run_command('--signal', '0', pid).returncode, 2)
+        self.assertEqual(self.run_command('--signal', 'STOP', str(os.getpid())).returncode, 2)
+
     def test_invalid_deadlines_are_rejected_before_exec(self):
         for deadline in ('0', '-1', '601', '1junk', ''):
             with self.subTest(deadline=deadline):

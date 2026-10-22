@@ -13,7 +13,8 @@ stage=starting
 printf 'BT_PAIRING_RESULT=pending\n' >"$logdir/bluetooth-result.txt" || exit 20
 
 finished() {
-    kill -0 "$1" 2>/dev/null || return 0
+    if aic-bounded-run --signal 0 "$1"; then probe_status=0; else probe_status=$?; fi
+    case "$probe_status" in 1) return 0;; 0) ;; *) return 1;; esac
     IFS= read -r child_stat <"/proc/$1/stat" 2>/dev/null || return 1
     case "$child_stat" in *') Z '*) return 0;; esac
     return 1
@@ -30,12 +31,12 @@ cleanup() {
     original_status=$?
     trap - EXIT
     for pid in "$bluez_pid" "$attach_pid" "$dbus_pid"; do
-        [ -z "$pid" ] || kill "$pid" 2>/dev/null || :
+        [ -z "$pid" ] || aic-bounded-run --signal TERM "$pid" 2>/dev/null || :
     done
     [ -z "$bluez_pid$attach_pid$dbus_pid" ] || sleep 1
     for pid in "$bluez_pid" "$attach_pid" "$dbus_pid"; do
         if [ -n "$pid" ]; then
-            kill -KILL "$pid" 2>/dev/null || :
+            aic-bounded-run --signal KILL "$pid" 2>/dev/null || :
         fi
     done
     cleanup_attempt=0
@@ -80,10 +81,11 @@ mark() {
     printf '%s %s\n' "$uptime" "$stage" >>"$logdir/bluetooth-progress.txt" || exit 20
     sync || exit 20
 }
-alive() { kill -0 "$1" 2>/dev/null; }
+alive() { aic-bounded-run --signal 0 "$1"; }
 
 mark prerequisite
 [ "$(uname -r)" = 6.12.114 ] || fail 10
+aic-bounded-run --signal 0 "$$" || fail 20
 grep -qx 'RADIO_RESET_RESULT=success' "$logdir/radio-result.txt" || fail 10
 for module in ecc ecdh_generic cmac bluetooth pwrseq-core btbcm btqca hci_uart; do
     mark "load_$module"

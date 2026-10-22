@@ -44,9 +44,9 @@ def checked_inputs(userspace, prep):
     boot.require_hash(CHECKS / 'aic-pairing-test.c',
         'beea11866d637d51187407e10400e6e1ecff9f347dcd7fcf773e67d750bf8c71')
     boot.require_hash(CHECKS / 'aic-bounded-run.c',
-        '6dcc09c264112d83e5f0590246936d0f76817a30b4530a21b2eaa482323b5e4f')
+        '35755804d17e4e0222dc73f4bcb3c4caa7f1bce6935c9aab9c74ffafa7932107')
     boot.require_hash(prep / 'aic-bounded-run',
-        'bf4019e9511459d91b8cdde4f1e1b84d4e2a0bc9a9b907d53a4a86e73b3c3c6a')
+        'a956293998341b27230272a645282c3c0db339a76be54bb81ea77b91ca6ddd20')
     files = {'init': CHECKS / 'bluetooth-test-init.sh',
              'aic-bluetooth-test.sh': CHECKS / 'aic-bluetooth-test.sh',
              'aic-bluetooth-snapshot.sh': CHECKS / 'aic-bluetooth-snapshot.sh',
@@ -84,7 +84,7 @@ def assemble(output, userspace, prep):
         shutil.copytree(base / 'boot', output / 'boot')
     ramfs = output / 'ramfs'; ramfs.mkdir()
     hashes = {name: sha(path.read_bytes()) for name, path in files.items()}
-    inputs = {'diagnostic_version': 3, 'bluez_version': '5.79', 'dbus_version': '1.14.10',
+    inputs = {'diagnostic_version': 4, 'bluez_version': '5.79', 'dbus_version': '1.14.10',
               'pairing_window_seconds': 180, 'capability': 'NoInputNoOutput',
               'module_order': list(MODULES), 'extra_payload_sha256': hashes,
               'base_radio_ramfs_sha256': base_manifest['ramfs_sha256'],
