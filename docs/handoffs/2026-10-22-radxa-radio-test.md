@@ -52,3 +52,57 @@ limited radio result; AP, pairing, coexistence and Android Auto remain untested.
 Then preserve the post-test card image and restore the owner-selected complete
 Radxa OS backup, using full-card readback verification and the reference checks
 from the earlier handoff. Reidentify device paths on each insertion.
+
+## Physical result
+
+The returning card matched its recorded model, serial, capacity and both test
+partition UUIDs. Desktop mounts were unmounted, and `AICBOOTLOGS` was mounted
+read-only. One boot directory, `19f036ad-b596-4a94-b66f-1320d05112da`, contained
+all nine expected files; every copied file's SHA-256 matched the source.
+Private evidence is in
+`buildroot/output/radxa-radio-test-20261022-v2/evidence-20261022T115544Z/`;
+`evidence.json` records file hashes, and `analysis.json` records cross-checks.
+
+Linux **6.12.114** reached diagnostic userspace with the expected V1.12M/AIC
+model. Both SDIO IDs bound to their expected drivers. The four selected modules
+were live, with no btlpm. The kernel logged all six selected firmware/config
+paths, and the embedded input record matched the selected image manifest.
+
+The progress markers show kernel validation at 1.06 s, waiting for SDIO at
+1.07 s, rfkill/cfg80211/BSP/fdrv loads beginning at 2.09/2.10/2.15/2.16 s,
+firmware readiness at 3.69 s, HCI Reset beginning at 3.72 s and completion at
+**3.74 s**. These are kernel-uptime markers, not measured power-on/shutdown times.
+`radio.log` contains `AIC firmware load ordering ready: wlan0` and
+`HCI Reset complete`; `RADIO_RESET_RESULT=success`, `RADIO_STAGE_EXIT=0` and
+`CAPTURE_FINISHED=1` agree. The helper requires a matching HCI Reset Command
+Complete with status zero. Its newly static ARM64 build has now executed
+successfully on the real board, resolving the pending native-execution check;
+the QEMU-user ioctl limitation remains a separate host-emulation issue.
+
+All five candidate DT property groups also passed against `live.dtb`: Bluetooth
+GPIO defaults, mux/pulls, SDIO power sequence, four UART flow-control pins and
+antenna/SDIO settings. The GPIO snapshot shows PC1 low, PC0 physical high,
+antenna PD3 low, PB3 input low and PB4 input high. This captures initialized
+directions/levels, not electrical timing or long-term stability.
+
+No panic/Oops/BUG/call-trace signatures were found in the saved kernel log.
+Do not describe it as error-free: it records missing `regulatory.db`, permissive
+custom regulatory rules, an early BSP power-control timer `bus down` message
+and UART1 DMA-property/request warnings, plus out-of-tree taint and earlier
+ITS/static-GPIO/console-DMA warnings. The timer reports its `BUS_DOWN_ST` branch
+during initialization; subsequent firmware readiness and reset succeed. Its
+long-term significance has not been established. Regulatory configuration must
+be reviewed before AP/channel acceptance; UART-DMA fallback needs assessment
+with sustained traffic. No driver workaround was applied from this snapshot.
+
+This is **one brief successful initialization/reset**, not Wi-Fi association/AP,
+hciattach/BlueZ operation, pairing, coexistence, repeated cold starts or Android
+Auto acceptance. Power/cable, six-minute allowance and LED observations were
+requested from the owner; the saved log count alone does not establish them.
+
+## Recovery after radio test
+
+The log partition was unmounted after verified capture. The post-test diagnostic
+card region was preserved privately before starting full-card restoration from
+the previously selected backup. Full restoration/readback is in progress at
+this checkpoint; do not move the card until completion and safe ejection.

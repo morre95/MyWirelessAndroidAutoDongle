@@ -29,6 +29,12 @@ Firmware terms are still unresolved in
 Keep this image, its firmware and raw logs private; no distribution approval is
 inferred. The checked-in scripts contain hashes/paths, not firmware binaries.
 
+The preparation statements above describe the build checkpoint. A subsequent
+physical run now confirms firmware readiness and successful HCI Reset on Linux
+6.12.114; see the [radio-test handoff](../../../../../docs/handoffs/2026-10-22-radxa-radio-test.md)
+for evidence, warning review and current recovery state. Build manifests retain
+their original build-time flags; they are not rewritten as hardware evidence.
+
 ## Startup and evidence
 
 The PID 1 script refuses execution outside PID 1. It mounts the diagnostic FAT

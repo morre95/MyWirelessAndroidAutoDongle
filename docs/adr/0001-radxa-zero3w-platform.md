@@ -2,11 +2,11 @@
 
 ## Status
 
-Proposed for release; the engineering source baseline below is selected for subsequent integration as of 2026-10-21. Kernel/accessory/AIC linking, boot-chain packing, compiled-DT checks and three diagnostic Linux 6.12.114 boots support that choice. The 2026-10-22 boot-only experiment reached userspace with the selected DT; radio firmware/modules were absent. Firmware redistribution terms remain unresolved. Keep [task #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) open and retain downstream dependencies until the firmware decision and tracker review are complete. This record does not establish a working Buildroot dongle image.
+Proposed for release; the engineering source baseline below is selected for subsequent integration as of 2026-10-21. Kernel/accessory/AIC linking, boot-chain packing, compiled-DT checks and three diagnostic Linux 6.12.114 boots support that choice. The 2026-10-22 boot-only experiment reached userspace with the selected DT; a later isolated radio boot confirmed firmware readiness and successful HCI Reset. Firmware redistribution terms remain unresolved. Keep [task #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) open and retain downstream dependencies until the firmware decision and tracker review are complete. This record does not establish a working Buildroot dongle image.
 
 ## Date
 
-2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot evidence added 2026-10-22.
+2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22.
 
 ## Context
 
@@ -35,8 +35,8 @@ Existing Pi source pins and the Buildroot submodule remain unchanged.
 | Bootloader | U-Boot 2026.01, commit `127a42c7257a6ffbbd1575ed1cbaa8f5408a44b3`, release archive `u-boot-2026.01.tar.bz2`; `radxa-zero-3-rk3566_defconfig` | Isolated build/packing pass; card containing this boot chain reaches Linux diagnostic userspace; serial stage banners/training details not captured |
 | DDR / BL31 | rkbin commit `f43a462e7a1429a9d407ae52b4745033034a6cf9`; `bin/rk35/rk3566_ddr_1056MHz_v1.23.bin` and `bin/rk35/rk3568_bl31_v1.44.elf` | Exact blobs verified inside the packed bootloader; retain rkbin notices; OP-TEE not selected |
 | Kernel | Linux 6.12.114, commit `85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e`, release archive `linux-6.12.114.tar.xz` | Full Image/modules link; three physical boot-only snapshots reach diagnostic userspace; external modules not loaded by that experiment |
-| Linux device tree | The same Linux input plus the board patches below; `rockchip/rk3566-radxa-zero-3w-aic8800d80.dtb` | Six compiled-property tests pass; live DT/hog directions checked in three boots; generic DT unchanged; schema, electrical timing and radio operation remain unverified |
-| Radio driver | Radxa AIC tag `4.0+git20241119.06da8476-1`, commit `fc7cbdd1791416c2457fa27a59e508bf325c9c3f`; `src/SDIO/driver_fw/driver/aic8800` plus the patch series below | All three modules link; selected startup path uses BSP/fdrv without loading btlpm, matching the reference path |
+| Linux device tree | The same Linux input plus the board patches below; `rockchip/rk3566-radxa-zero-3w-aic8800d80.dtb` | Six compiled-property tests pass; five candidate property groups also pass against the radio boot's live DT; generic DT unchanged; schema and electrical timing remain unverified |
+| Radio driver | Radxa AIC tag `4.0+git20241119.06da8476-1`, commit `fc7cbdd1791416c2457fa27a59e508bf325c9c3f`; `src/SDIO/driver_fw/driver/aic8800` plus the patch series below | All three modules link; selected BSP/fdrv path without btlpm reached firmware readiness and successful HCI Reset in one diagnostic boot; AP/pairing/stability remain untested |
 | Radio firmware/configuration | Only the six D80 files listed under [Firmware observed loading](#firmware-observed-loading), from that same AIC commit | All six SHA-256 values match the working reference card; selection remains subject to clarification of redistribution/source obligations |
 
 Use the source/archive hashes in [ARM64 compilation](#arm64-compilation-slice)
@@ -49,6 +49,13 @@ That hash applies to Buildroot's generated
 not to a GitHub-generated tarball. Generated Image/DTB/bootloader hashes identify
 particular build outputs and do not replace download verification. Mandatory
 download checking must remain enabled when the shipping target is added.
+
+The [2026-10-22 radio-test handoff](../handoffs/2026-10-22-radxa-radio-test.md)
+records this limited physical result, input/evidence hashes and recovery state.
+The saved kernel log also contains missing regulatory database/permissive custom
+rules, an initialization-time BSP `bus down` timer message and UART-DMA warnings.
+These require follow-up before AP/channel or sustained-traffic acceptance;
+successful reset does not establish the complete radio runtime or clear #5.
 
 ### Required patches and startup contract
 
