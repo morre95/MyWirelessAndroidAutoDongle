@@ -97,12 +97,29 @@ with sustained traffic. No driver workaround was applied from this snapshot.
 
 This is **one brief successful initialization/reset**, not Wi-Fi association/AP,
 hciattach/BlueZ operation, pairing, coexistence, repeated cold starts or Android
-Auto acceptance. Power/cable, six-minute allowance and LED observations were
-requested from the owner; the saved log count alone does not establish them.
+Auto acceptance. The owner confirmed one start, the same computer USB-A–USB-C
+cable and a wait of at least six minutes. No separate LED observation or exact
+power-on/shutdown timing was supplied.
 
 ## Recovery after radio test
 
-The log partition was unmounted after verified capture. The post-test diagnostic
-card region was preserved privately before starting full-card restoration from
-the previously selected backup. Full restoration/readback is in progress at
-this checkpoint; do not move the card until completion and safe ejection.
+The log partition was unmounted after verified capture. Before restoration,
+all **234,881,024 bytes** of the post-test diagnostic card region were preserved
+as `postboot-card-20261022T115621Z.img` under the private bundle directory.
+Its SHA-256 is recorded in `reference-restore-20261022T115621Z.json` beside it.
+
+Full-card recovery from the previously selected
+`radxa-recovery/radxa-os-20261021-172921.img.zst` is complete. The compressed
+backup hash was reverified, and all **31,266,439,168 bytes** were written,
+flushed and read back after requesting cache eviction. The source and full
+readback SHA-256 both match the recorded raw-backup hash. The private recovery
+record includes byte counts, hashes and completion timestamps.
+
+After refreshing UDisks metadata, the original GPT and `config`/`efi`/`rootfs`
+filesystem identities were verified. The config desktop automount was unmounted
+and UDisks successfully powered off the reader. The card now contains **Radxa OS
+again**, is safe to remove and is no longer a radio diagnostic card.
+
+Return it to the unpowered Radxa and boot the reference. Post-recovery SSH,
+Wi-Fi association, hciattach and powered-hci0/BlueZ checks are pending that
+physical step; they have not been inferred from the raw-card verification.

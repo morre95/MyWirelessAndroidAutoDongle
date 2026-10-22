@@ -138,3 +138,8 @@ The owner subsequently moved the card to the reader to proceed. The radio image
 has now been written, readback-verified and safely ejected; the card contains the
 diagnostic again. Continue with the
 [radio-test handoff](2026-10-22-radxa-radio-test.md) for the current card state.
+
+That radio experiment has since completed successfully for firmware readiness
+and HCI Reset. Its logs and raw card snapshot were preserved, and full Radxa OS
+recovery/readback verification and safe ejection completed again. The linked
+radio handoff records the result, remaining warnings and pending reference boot.
