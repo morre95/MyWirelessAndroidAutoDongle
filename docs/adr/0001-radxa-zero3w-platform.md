@@ -2,11 +2,11 @@
 
 ## Status
 
-Proposed for release; the engineering source baseline below is selected for subsequent integration as of 2026-10-21. Kernel/accessory/AIC linking, boot-chain packing, compiled-DT checks and three diagnostic Linux 6.12.114 boots support that choice. The 2026-10-22 boot-only experiment reached userspace with the selected DT; a later isolated radio boot confirmed firmware readiness and successful HCI Reset. Firmware redistribution terms remain unresolved. Keep [task #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) open and retain downstream dependencies until the firmware decision and tracker review are complete. This record does not establish a working Buildroot dongle image.
+Proposed for release; the engineering source baseline below is selected for subsequent integration as of 2026-10-21. Kernel/accessory/AIC linking, boot-chain packing, compiled-DT checks and three diagnostic Linux 6.12.114 boots support that choice. The 2026-10-22 boot-only experiment reached userspace with the selected DT; a later isolated radio boot confirmed firmware readiness and successful HCI Reset. Firmware redistribution terms remain unresolved. On 2026-10-23 the owner closed [task #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) after tracker review, with the unresolved firmware terms recorded below and their resolution handed to [task #11](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/11). This ADR stays Proposed for release until #11 settles those terms; downstream dependencies are unchanged. This record does not establish a working Buildroot dongle image.
 
 ## Date
 
-2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22.
+2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22; mainline Bluetooth attachment result and task #5 closure review added 2026-10-23.
 
 ## Context
 
@@ -173,6 +173,7 @@ A follow-up found the maintainer's [licensing clarification in upstream issue #5
 - Physical microSD boot and SSH succeeded on V1.12M. `/`, `/config` and `/boot/efi` are mounted from microSD in **Radxa OS**; the future Buildroot partition layout is not tested by this result.
 - `wlan0` connected on 5 GHz, channel 100, 80 MHz width. `iw list` advertises AP and AP/VLAN modes. A hostapd AP, regulatory/channel behavior and Bluetooth coexistence have not been tested.
 - `bluetoothctl show` reports a powered controller. Pairing, the dongle Bluetooth profiles and reconnection have not been tested.
+- On the selected **Linux 6.12.114** baseline, a private diagnostic initramfs (2026-10-23, two boots) passed radio setup, bounded HCI Reset and live hci0 attachment, then failed BlueZ 5.79 adapter registration: `getsockopt(L2CAP_OPTIONS)` returned `EOPNOTSUPP` with `CONFIG_BT_LE=n`. No adapter or pairing window was reached. Explicit `ControllerMode=bredr` is an untested hypothesis for [task #12](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/12); see the [mainline Bluetooth diagnostic](../../aa_wireless_dongle/board/radxa/zero3w/checks/bluetooth-test.md).
 - `/sys/class/udc/fcc00000.usb` exists. Accessory gadget binding, enumeration, accessory-start uevents and Android Auto have not been tested.
 - The owner powered the board from a USB outlet for this diagnostic session. The exact supply/port/cable and car USB acceptance were not recorded or measured.
 
@@ -428,6 +429,8 @@ Keep custom source/hash files scoped by board and kernel source; do not let a Ra
 The audited [rkbin license](https://github.com/rockchip-linux/rkbin/blob/f43a462e7a1429a9d407ae52b4745033034a6cf9/LICENSE) grants use/copy/distribution and requires notices to remain. Buildroot classifies the package as proprietary. Preserve the actual notices and source/license hashes.
 
 Radxa's [driver copyright metadata](https://github.com/radxa-pkg/aic8800/blob/e9e43ed79c50483080e9bcdfb08caeeb869d7191/debian/copyright) distinguishes GPL-3+ packaging and GPL-2 source. Verify notices and redistribution terms for the selected firmware/calibration binaries separately; repository-level driver licensing alone does not establish the required binary-file terms.
+
+Recorded firmware-licensing state on 2026-10-23: the maintainer clarification in [radxa-pkg/aic8800#54](https://github.com/radxa-pkg/aic8800/issues/54) covers the GPL-2 driver source and GPL-3 packaging metadata only. The request for the six selected D80 files' redistribution terms, notices and source obligations, [radxa-pkg/aic8800#109](https://github.com/radxa-pkg/aic8800/issues/109), is open with no response. No redistribution permission is inferred. Resolving it, or explicitly changing the firmware selection, is part of task #11's distribution-rights criterion; no release image may include these files before then.
 
 The checked-out Armbian firmware package sets `ARMBIAN_FIRMWARE_REDISTRIBUTE = NO` when firmware is selected. Its AP6212 option is therefore not sufficient evidence for including those files in this project's downloadable release image. If an older radio is received, identify an appropriate, documented firmware source before packaging it.
 
@@ -703,7 +706,7 @@ the recovery point; recovery state belongs in the dated
 
 ## Consequences and next evidence
 
-- Use the selected engineering baseline and patch order above for subsequent integration. Task #5 stays open pending firmware terms and tracker review; dependent tasks retain their prerequisites.
+- Use the selected engineering baseline and patch order above for subsequent integration. Task #5 is closed with firmware terms recorded as unresolved; task #11 owns their resolution and task #12 owns mainline BlueZ adapter registration and pairing. Dependent tasks retain their prerequisites.
 - PCB/radio identification, source/link compatibility, packing, compiled-DT checks and the three boot-only mainline snapshots support the engineering choice. Radio operation and a complete Buildroot runtime remain unverified.
 - Resolve the six firmware files' redistribution/source obligations before promoting this ADR to Accepted. Change the selected firmware/source baseline explicitly if the answer requires it.
 - The complete Buildroot microSD layout/runtime, AP/Bluetooth coexistence, USB enumeration/negotiation, power and connection reliability remain physical acceptance checks in subsequent tasks.
