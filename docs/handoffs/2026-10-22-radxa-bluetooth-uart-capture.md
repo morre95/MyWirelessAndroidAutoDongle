@@ -194,7 +194,7 @@ connected. Card and runtime recovery are complete. Local finalization helper:
 `/tmp/radxa-finalize-v3-recovery.py` (completed).
 
 A v4 image fixing the process-control dependency has been built locally and
-reviewed; source changes are saved in local commit `123f1fb`. Selected candidate:
+reviewed; source changes are saved in local commit `5c20818`. Selected candidate:
 `buildroot/output/radxa-bluetooth-test-20261022-v4/radxa-bluetooth-test.img`,
 234,881,024 bytes, SHA-256
 `4a0186870d04bbca2bf73ded9b20f7ab0926723123c9e2820e4d4ea9603776ce`.
@@ -264,7 +264,7 @@ The source/build recipe and full check results are in
 Thirty-five host checks, six ARM64 supervisor cases and eleven ARM64 BusyBox
 stage cases passed. Independent review's required findings were fixed.
 Actual uninterruptible tasks and PID-1/hardware execution remain unverified.
-Source changes are saved locally in commit `2de39a1`; no push or merge was made.
+Source changes are saved locally in commit `7f044a6`; no push or merge was made.
 Private shutdown receipt: `reference-shutdown-for-v3.json` in the v3 bundle.
 
 V3 adds bounded snapshots before attachment, at failure before cleanup and at
