@@ -1,5 +1,143 @@
 # Radxa Bluetooth UART failure capture — 2026-10-22
 
+## V4 result and completed reference recovery — 2026-10-23
+
+The owner moved the restored card back and confirmed Radxa power connected.
+After owner-entered local SSH login, **all seven read-only runtime checks
+passed at 11:15:52 UTC**: Debian 12, kernel `6.1.84-10-rk2410-nocsf`, root
+`/dev/mmcblk1p3`, associated/up Wi-Fi, active SSH/hciattach/BlueZ, present and
+powered hci0, and both AIC SDIO bindings. Private receipt:
+`reference-status-after-v4.json` in the v4 bundle. An initial association probe
+returned 125 and is preserved as `reference-status-after-v4-first-probe.json`;
+the repeat used an explicit system-tool PATH and all checks passed with no
+query errors. The PATH regression was reproduced and fixed without weakening
+the Wi-Fi check. No password or terminal stream was captured.
+
+**Card and running-reference recovery are complete. Radxa is left running the
+restored reference, with power connected.** The mainline diagnostic pairing
+still failed as recorded below. The next source-supported hypothesis is
+explicit `ControllerMode=bredr`; no v5 image has been built or tested. Keep
+the reference running while preparing any next diagnostic.
+
+Full reference restoration ran from **10:17:17 to 10:44:19 UTC** (27.0
+minutes). All **31,266,439,168 bytes** were restored and read back with raw
+SHA-256 `35be4ea0a847505d390aad10c9c95e9d18406ddb11421bd726011d1bfb1a6679`.
+Whole-disk rescan, GPT and all three original filesystem UUIDs/sizes passed;
+all partitions were unmounted and the reader safely powered off. Both desktop
+automounters were confirmed resumed; no operator-error receipt was created.
+Private receipts: `reference-restore-v4.json` and
+`reference-card-ready-v4.json` in the v4 bundle.
+
+**The card now contains the fully readback-verified Radxa OS reference.** It
+has been moved back and reference boot/runtime recovery passed as recorded
+above. Do not treat reference recovery as mainline Bluetooth diagnostic success.
+
+All **74 files across two boot directories** were copied from a read-only log
+mount and individually SHA-256-verified into the private v4 bundle's
+`evidence-20261023T101114Z/`. Both embedded inputs match the selected v4
+manifest. `evidence.json` and `analysis.json` preserve provenance and findings.
+The full postboot **234,881,024-byte** test range is preserved as
+`postboot-card-20261023T101114Z.img`, SHA-256
+`18ff55c6ef3e4a345df99fee6ea140c06a2f95ef3257fa0420469196fbb09ada`.
+Capture receipt: `capture-v4.json`.
+
+Both boots passed setup and radio reset, registered hci0 and passed the live
+attachment gate (`hciattach.log`: `Device setup complete`), then started D-Bus
+and BlueZ. Both failed at `STAGE=bluez_start`, exit **13**. BlueZ 5.79 reports
+`getsockopt(L2CAP_OPTIONS): Operation not supported (95)`, then failure to
+create the GATT database and register the adapter. `org.bluez.Adapter1` is
+absent, and the pairing agent/window never starts. Failure snapshots and final
+snapshots exit zero, both report `CAPTURE_FINISHED=1`, and all three children
+are reaped with `CLEANUP_FINISHED=1`. Attachment was sleeping in `do_sys_poll`,
+not observed in D state. These logs support completed diagnostic capture and
+cleanup, not physical pairing or Android Auto acceptance. The init's normal
+poweroff path is consistent with the reported LED going dark.
+
+The exact built BlueZ 5.79 `src/adapter.c` lines 9297–9302 skip GATT database
+and advertising setup when `ControllerMode=bredr`. Its default `main.conf`
+documents dual mode; the selected kernel configuration has `CONFIG_BT_LE=n`.
+Explicit BR/EDR mode is therefore a source-supported next diagnostic hypothesis
+that can avoid this LE/GATT initialization path without changing the kernel.
+It is **not implemented or physically verified** at this checkpoint; optional
+plugin warnings do not by themselves explain the fatal adapter error. Do not
+claim that enabling kernel LE or disabling arbitrary plugins is required.
+
+All evidence is preserved and full-card recovery is complete as recorded
+above. `/tmp/radxa-restore-v4.sh` is a **completed historical entrypoint**, not
+a command to rerun. The private helper refuses an existing restore receipt.
+All twelve private operator checks pass, including real zstd decompression and
+full temporary-file recovery, rejection of corrupted readback, and refusal to
+write if preserved evidence has changed. After verified card recovery, the
+prepared local `/tmp/radxa-check-reference-v4.sh` performs the read-only runtime
+checks through owner-entered SSH login with the existing strict host-key
+record; this local finalization entrypoint is now completed. It captures only
+the remote probe's JSON stdout, not password input.
+
+## V4 physical and writing history — 2026-10-23
+
+The owner reported two starts at **09:57:52 UTC**, neither showing the test
+device in the phone Bluetooth scan, with the LED going dark shortly after
+power application. Exact physical start times and durations were not measured.
+Power was disconnected at **12:10 local / 10:10 UTC**, to minute precision,
+after the conservative twelve-minute wait; the card was returned to the reader.
+Both partitions were automatically mounted by the host on insertion. Capture
+paused desktop automounters, unmounted them and collected files from a read-only
+log mount. The preserved raw range can therefore include host mount metadata;
+it is not claimed to be an untouched power-off image. Private operator timing
+and final state are in `operator-test-session.json` in the v4 bundle.
+
+Before physical testing, the first write started at **09:33:26 UTC** but its
+readback differed after the host mounted AICBOOT read-write at **09:33:36 UTC**.
+The original helper had closed its exclusive handle and rescanned before
+verification. The corrected helper temporarily pauses only the owner's udiskie
+and GVfs volume monitors, verifies under the exclusive writer and again through
+a fresh handle after rescan, then refuses any unexpected mount before ejection.
+It resumes previously running monitors on exit and changes no desktop settings.
+
+The complete failed preboot range was preserved before repair as
+`failed-preboot-card-20261023T095051Z.img`, SHA-256
+`7b8f7774d36e6d7746137989f222a83620f2d1e2b083697ac2977f51f66bd23c`.
+`pre-repair-v4.json` records 87 differing bytes across six sectors, all within
+boot ext4, consistent with the recorded writable mount. Original evidence is
+retained as `card-write-v4-failed-original.json`,
+`operator-v4-before-automount-fix.py` and `failed-write-mount-journal.txt`.
+
+An intervening repair startup failed before opening the card because process
+inventory resolved an unrelated pCloud executable through a protected FUSE
+mount. `startup-diagnosis-20261023T094759Z.json` and
+`operator-v4-before-proc-filter.py` preserve this failure. Filtering process
+names first and inspecting only known monitors' executable symlinks fixed it;
+selected-monitor access errors still fail closed. Both actual desktop monitors
+passed a host pause/resume check without card access. No second card-write
+failure was established.
+
+The corrected preboot write passed both full-image readbacks of 234,881,024
+bytes against selected v4 SHA-256
+`4a0186870d04bbca2bf73ded9b20f7ab0926723123c9e2820e4d4ea9603776ce`.
+DOS table, sizes/labels, boot UUID `fec47bc7-62b5-4400-85fd-0cb2535463dc` and
+log UUID `381C-EB2B` passed; the stale backup GPT signature was cleared. The
+reader was safely powered off at **09:51:07 UTC**. Preboot receipts:
+`card-write-v4.json` and `card-ready-v4.json`.
+
+## Local v4 helpers and checks
+
+Historical `/tmp/radxa-*.py` helpers from v3 were absent. The replacement
+private `operator-v4.py` is preserved with the v4 bundle, pins selected
+image/backup/device/filesystem identities, verifies preserved capture before
+restoration and refuses repeated completed operations. It saves program
+exceptions as `operator-error-<timestamp>.json`. Local terminal entrypoints
+record program results while passwords are entered directly by the owner.
+The completed write/capture/restore helpers must not be rerun on the reference.
+
+Fresh selected image and compressed-backup hashes and all ten actual-image
+checks passed before writing. Nineteen initial guard/I/O checks passed without
+card writes. The twelve final private operator regressions cover writable
+mount interference, preserved snapshots/evidence, genuine corruption, strict
+ejection, process selection/resume and real zstd/full-file recovery. Removing
+automount suspension in an isolated helper copy reproduces the regression;
+the protected-FUSE and command-PATH failures were also reproduced before their
+fixes. These checks and the physical evidence above do not establish pairing.
+
 ## V3 result and recovery checkpoint
 
 The owner confirmed Radxa power disconnected and the card back in the reader

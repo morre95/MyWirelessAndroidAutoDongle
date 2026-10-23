@@ -1,6 +1,27 @@
 # Mainline Bluetooth attachment diagnostic — 2026-10-22
 
-## Selected next diagnostic: native process control (v4)
+## Latest physical result: v4 — 2026-10-23
+
+V4 was written with two matching full-image readbacks and tested twice by the
+owner. All 74 files across both boots and the full postboot test range are
+privately preserved and hash-verified. Both boots pass radio reset, live HCI
+attachment and D-Bus startup, then fail adapter registration at `bluez_start`
+(13): BlueZ 5.79 cannot create its GATT database because
+`getsockopt(L2CAP_OPTIONS)` returns `EOPNOTSUPP` (95). The pairing window never
+starts. Both failure/final snapshots and child cleanup complete successfully.
+
+The exact BlueZ 5.79 adapter setup skips LE/GATT initialization when explicitly
+configured with `ControllerMode=bredr`; the selected diagnostic kernel has
+`CONFIG_BT_LE=n`. This is the next source-supported hypothesis, not a tested
+fix or prepared v5 image. Do not repeat v4 blindly or infer pairing acceptance.
+Full reference restoration and all-byte readback passed, and the reader was
+safely powered off before card return. The restored reference was subsequently
+booted and all read-only runtime recovery checks passed. Radxa is left running
+the reference with power connected. The authoritative evidence,
+operator history and recovery checkpoint are in the
+[v4 result handoff](../../../../../docs/handoffs/2026-10-22-radxa-bluetooth-uart-capture.md).
+
+## Historical preparation: native process control (v4)
 
 V3 registered hci0, then falsely failed its attachment gate because the minimal
 BusyBox has neither a kill applet nor an ash kill builtin. Failed signal probes
