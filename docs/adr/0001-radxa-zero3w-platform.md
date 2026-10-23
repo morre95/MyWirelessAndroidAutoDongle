@@ -6,7 +6,7 @@ Proposed for release; the engineering source baseline below is selected for subs
 
 ## Date
 
-2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22; mainline Bluetooth attachment result and task #5 closure review added 2026-10-23.
+2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22; mainline Bluetooth attachment result and task #5 closure review added 2026-10-23; shipping kernel/boot-component defconfig build added 2026-10-23.
 
 ## Context
 
@@ -476,7 +476,7 @@ Compilation exposed three problems that patch-application checks did not detect:
 | `cfg80211_ops.set_monitor_channel` includes a net-device argument, but the patched SDK enables that path only at 6.13+ | `patches/aic8800/0001-Handle-monitor-callback-in-Linux-6.12.114.patch` enables the existing signature and both internal call sites for the pinned 6.12.114 candidate | Callback type error resolved |
 | Two RX preallocation definitions use `()` despite existing `(void)` declarations, rejected by Clang's strict-prototype check | `patches/aic8800/0002-Use-strict-RX-preallocation-prototypes.patch` matches the existing header declarations | All three AIC aggregate objects compile for ARM64 |
 
-The AIC patch paths above are relative to `aa_wireless_dongle/board/radxa/zero3w/`. These are preparation patches for the pinned candidates. No active defconfig consumes them yet. Future integration must apply the existing two shared accessory patches **before** the board-local Linux patches (HID correction, DT variant, then GPIO defaults below), and the official AIC Debian patch series **before** the two scoped AIC patches. Give Radxa its own Linux download hash; do not select the Pi Linux hash or apply the Radxa-only patches to the retained Pi pin.
+The AIC patch paths above are relative to `aa_wireless_dongle/board/radxa/zero3w/`. These are preparation patches for the pinned candidates. Since task #7, `configs/radxa-zero3w_defconfig` applies the Linux patches; no defconfig consumes the AIC patches yet. Future integration must apply the existing two shared accessory patches **before** the board-local Linux patches (HID correction, DT variant, then GPIO defaults below), and the official AIC Debian patch series **before** the two scoped AIC patches. Give Radxa its own Linux download hash; do not select the Pi Linux hash or apply the Radxa-only patches to the retained Pi pin.
 
 To reproduce on fresh, verified source extractions, set `RADXA_LINUX_SRC`, `RADXA_AIC_SRC`, `RADXA_OUT` and `RADXA_REPO` to absolute paths. `RADXA_AIC_SRC` is the archive root containing `src/` and `debian/`. Host tools must include LLVM/Clang, make, flex, bison and bc.
 
@@ -534,7 +534,7 @@ The source uses the pinned kernel's [fixed-regulator binding](https://github.com
 
 The new target compiled without DTC diagnostics. Compiled-tree checks using libfdt verified controller aliases/status, the SDIO power-sequence phandle and GPIO polarity, all six SDIO pinmux/drive settings, antenna GPIO/pinctrl/polarity, the inherited delays, UART flow control and OTG mode. The generic ZERO 3W DTB remained byte-identical to its recorded hash. The experimental DTB is 55,029 bytes, SHA-256 `39deb5067daa1eea5c638f93aadbd82ba17d01169a0f2632642dd6e952722660`; local evidence is `/tmp/radxa-build-check/aic-dtb-build.log` and `check-aic-dtb.py`. Patch application and reverse checks also passed.
 
-This is a compiled source candidate, not a complete AIC runtime or full schema/hardware validation. No shipping defconfig selects it. Bluetooth GPIO/reset/UART initialization, a Buildroot target integration, firmware terms and physical boot/radio/accessory checks remain pending.
+This is a compiled source candidate, not a complete AIC runtime or full schema/hardware validation. Since task #7, `configs/radxa-zero3w_defconfig` builds it as the board DT. Bluetooth GPIO/reset/UART initialization, a Buildroot target integration, firmware terms and physical boot/radio/accessory checks remain pending.
 
 ### Mainline GPIO ownership and power-sequence preparation: 2026-10-21
 
@@ -703,6 +703,25 @@ USB accessory negotiation, sustained operation and car power remain untested
 on mainline. The owner selected the verified previous-day full-card backup as
 the recovery point; recovery state belongs in the dated
 [boot-test handoff](../handoffs/2026-10-22-radxa-boot-test.md).
+
+### Shipping kernel and boot-component build: 2026-10-23
+
+Task [#7](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/7) adds `aa_wireless_dongle/configs/radxa-zero3w_defconfig`. It builds the selected kernel, the V1.12M AIC DT and the U-Boot/DDR/BL31 boot chain with the Bootlin AArch64 glibc stable toolchain and mandatory download hashes. It imports no Pi firmware, boot configuration, overlay, script or patch directory. It does not yet produce a microSD image or userspace (#8), and it does not package the AIC driver or firmware (#10, #11).
+
+- **Kernel configuration:** upstream ARM64 `defconfig`, then `board/common/kernel.config`, then `board/radxa/zero3w/linux.fragment`. The fragment enables `BT_LE` and `BT_RFCOMM` explicitly, together with `BT`, `BT_HCIUART` and `BT_HCIUART_H4`; the mainline Bluetooth result above traced the adapter-registration failure to their absence. `BT_BNEP` stays disabled. The ARM64 defconfig builds `certs/extract-cert`, so the target selects host OpenSSL.
+- **Patches and hashes:** the global patch directories are the shared `patches` followed by `board/radxa/zero3w/patches`, so Linux applies 0001–0005 in the order required above. `board/radxa/zero3w/patches/linux/linux.hash` pins `linux-6.12.114.tar.xz` to the kernel.org hash in [ARM64 compilation](#arm64-compilation-slice). Buildroot merges hash files across patch directories; the Pi `linux.hash` has no entry for this archive, and Pi targets never read the Radxa file. Buildroot's own `uboot.hash` and `rockchip-rkbin.hash` verify the U-Boot and rkbin archives, so no U-Boot hash file or configuration fragment is added; plain `radxa-zero-3-rk3566_defconfig` is the configuration that booted the board.
+- **Compiler:** this is the first build of the patched kernel with GCC (Bootlin `14.3.0`, binutils `2.43.1`); the earlier link evidence used LLVM. It completed without source changes.
+
+`make linux uboot` in the `aawg-buildroot` Docker environment produced:
+
+| Output | Size (bytes) | SHA-256 |
+| --- | --- | --- |
+| Resolved kernel `.config` | — | `0dfc6b40e53c075fe86d513904f816089e100d865ac1fb1120a9f23848e3d503` |
+| `images/Image` | 38,062,592 | `bd78de8fee4d31cbde32ab6e808378802007ccfe780b9a33b5ec9a0be099f135` |
+| `images/rk3566-radxa-zero-3w-aic8800d80.dtb` | 56,025 | `3bd46eb308d09a4fb62ca7ebe8a522a81de5d9953db094bbf99c106772ae956e` |
+| `images/u-boot-rockchip.bin` | 9,632,768 | `ce0ec7542f4eea97767184432029e84d2b33bf52ae0d0df159faa33a82d65bb3` |
+
+These identify one local build, not reproducible release hashes. `tests/radxa_platform_build_test.py` checks the resolved kernel options, release `6.12.114`, the ARM64 `Image` header, the installed DT, both rkbin blob hashes, the DDR blob at offset `0x800` of `u-boot-rockchip.bin` and the defconfig's hash enforcement and Pi isolation. The five AIC property cases of `tests/radxa_aic_dtb_test.py` pass against this build's DTB using Buildroot's host Python and pylibfdt. The generic-DT case was not run because this target builds only the AIC DT. No Pi defconfig, Pi board file, `board/common` file or shared patch changed. Nothing from this build has been booted.
 
 ## Consequences and next evidence
 
