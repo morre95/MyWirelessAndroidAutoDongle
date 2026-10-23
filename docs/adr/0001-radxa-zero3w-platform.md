@@ -6,7 +6,7 @@ Proposed for release; the engineering source baseline below is selected for subs
 
 ## Date
 
-2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22; mainline Bluetooth attachment result and task #5 closure review added 2026-10-23; shipping kernel/boot-component defconfig build added 2026-10-23.
+2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22; mainline Bluetooth attachment result and task #5 closure review added 2026-10-23; shipping kernel/boot-component defconfig build and first microSD image boots added 2026-10-23.
 
 ## Context
 
@@ -101,7 +101,7 @@ source/patch compatibility assessment and an explicit update to this decision.
 
 | Required capability | Evidence supporting the choice | Physical verification still required |
 | --- | --- | --- |
-| MicroSD boot | Reference boots; selected diagnostic card reaches Linux 6.12.114 userspace and writes FAT logs on the actual board | Complete Buildroot partition/mount layout and shipping userspace (#7–#8) |
+| MicroSD boot | Reference boots; selected diagnostic card reaches Linux 6.12.114 userspace; the #8 Buildroot image boots headlessly twice and persists `persist` writes across power removal | Boot log capture; rootfs read-only behaviour on the board |
 | Android accessory and uevents | Shared patches/HID correction link; source contains required uevents; mainline `fcc00000.usb` UDC is visible | Gadget binding, enumeration, negotiation and actual uevent delivery (#9) |
 | Wi-Fi AP | Pinned driver exposes AP operations; the reference advertises AP/AP-VLAN and operates as a Wi-Fi client | Selected driver/firmware on mainline, hostapd operation, channels and coexistence (#10–#12) |
 | Bluetooth | Exact firmware match and ordered startup pass on Radxa OS; mainline GPIO hog directions/UART1 observed; both AIC SDIO IDs appear in one boot snapshot | Matching mainline modules/firmware, HCI reset/attachment, pairing and AP coexistence (#10–#12) |
@@ -706,7 +706,7 @@ the recovery point; recovery state belongs in the dated
 
 ### Shipping kernel and boot-component build: 2026-10-23
 
-Task [#7](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/7) adds `aa_wireless_dongle/configs/radxa-zero3w_defconfig`. It builds the selected kernel, the V1.12M AIC DT and the U-Boot/DDR/BL31 boot chain with the Bootlin AArch64 glibc stable toolchain and mandatory download hashes. It imports no Pi firmware, boot configuration, overlay, script or patch directory. It does not yet produce a microSD image or userspace (#8), and it does not package the AIC driver or firmware (#10, #11).
+Task [#7](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/7) adds `aa_wireless_dongle/configs/radxa-zero3w_defconfig`. It builds the selected kernel, the V1.12M AIC DT and the U-Boot/DDR/BL31 boot chain with the Bootlin AArch64 glibc stable toolchain and mandatory download hashes. It imports no Pi firmware, boot configuration, overlay, script or patch directory. Task #8 extends it with the microSD image and userspace below. It does not package the AIC driver or firmware (#10, #11).
 
 - **Kernel configuration:** upstream ARM64 `defconfig`, then `board/common/kernel.config`, then `board/radxa/zero3w/linux.fragment`. The fragment enables `BT_LE` and `BT_RFCOMM` explicitly, together with `BT`, `BT_HCIUART` and `BT_HCIUART_H4`; the mainline Bluetooth result above traced the adapter-registration failure to their absence. `BT_BNEP` stays disabled. The ARM64 defconfig builds `certs/extract-cert`, so the target selects host OpenSSL.
 - **Patches and hashes:** the global patch directories are the shared `patches` followed by `board/radxa/zero3w/patches`, so Linux applies 0001–0005 in the order required above. `board/radxa/zero3w/patches/linux/linux.hash` pins `linux-6.12.114.tar.xz` to the kernel.org hash in [ARM64 compilation](#arm64-compilation-slice). Buildroot merges hash files across patch directories; the Pi `linux.hash` has no entry for this archive, and Pi targets never read the Radxa file. Buildroot's own `uboot.hash` and `rockchip-rkbin.hash` verify the U-Boot and rkbin archives, so no U-Boot hash file or configuration fragment is added; plain `radxa-zero-3-rk3566_defconfig` is the configuration that booted the board.
@@ -722,6 +722,14 @@ Task [#7](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/7) adds 
 | `images/u-boot-rockchip.bin` | 9,632,768 | `ce0ec7542f4eea97767184432029e84d2b33bf52ae0d0df159faa33a82d65bb3` |
 
 These identify one local build, not reproducible release hashes. `tests/radxa_platform_build_test.py` checks the resolved kernel options, release `6.12.114`, the ARM64 `Image` header, the installed DT, both rkbin blob hashes, the DDR blob at offset `0x800` of `u-boot-rockchip.bin` and the defconfig's hash enforcement and Pi isolation. The five AIC property cases of `tests/radxa_aic_dtb_test.py` pass against this build's DTB using Buildroot's host Python and pylibfdt. The generic-DT case was not run because this target builds only the AIC DT. No Pi defconfig, Pi board file, `board/common` file or shared patch changed. Nothing from this build has been booted.
+
+### MicroSD image and headless boots: 2026-10-23
+
+Task [#8](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/8) makes the same defconfig produce `images/sdcard.img`. It uses the boot path the 2026-10-22 diagnostic card proved: a DOS partition table, `u-boot-rockchip.bin` raw at 32 KiB, and a bootable FAT `WirelessAA` partition at 16 MiB. That partition holds `extlinux/extlinux.conf`, `Image`, the AIC DTB and `aawgd.conf`; U-Boot 2026.01's standard extlinux boot method needs no changes. A read-only 256 MiB ext4 rootfs and a 32 MiB `persist` follow. The common application rootfs and Pi package list are reused with the Bootlin toolchain. Buildroot's generic `genimage.sh` builds the image; no Pi image hook or Pi partition assumption is used.
+
+The DT aliases `mmc1 = &sdmmc0`, so the microSD card is `/dev/mmcblk1`. The kernel command line is `root=/dev/mmcblk1p2 rootwait console=ttyS2,1500000n8`, and `fstab` mounts `mmcblk1p1` at `/boot` (read-only) and `mmcblk1p3` at `/persist`. `tests/radxa_image_test.py` checks the table, offsets, bootloader bytes, boot files, `extlinux.conf`, `fstab`, the `aawgd.conf` symlink, the alias and the disabled eMMC controller.
+
+The image is 385,875,968 bytes, SHA-256 `2f3aff22279c5920609a536314d47aa097fa57eaf20796949e73181d305f0117`. A verified write of it booted twice headlessly on the V1.12M board from computer USB power. Both times the board's init mounted `persist` read-write and wrote the seedrng seed and `bluetooth/` there, and the data survived power removal. `WirelessAA` stayed a clean, computer-mountable volume. The host mounted the card read-write before each read-back copy, so rootfs immutability on the board is not shown by these copies. No serial console was available, so no boot log was captured. Details, hashes and limits are in the [microSD image handoff](../handoffs/2026-10-23-radxa-microsd-image.md). Radio, gadget and application runtime remain #9–#12.
 
 ## Consequences and next evidence
 
