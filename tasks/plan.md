@@ -3,11 +3,12 @@
 **Status:** Approved by the owner on 2026-10-14 (Phase 2: Plan).
 **Plan approval:** Owner confirmed: "ja jag godkänner planen".
 **Task breakdown:** Approved by the owner on 2026-10-14: "ja jag godkänner uppgiftslistan".
-**Execution:** Phase 4 continues with task #5. The received V1.12M/AIC8800D80 board boots the official Radxa OS diagnostic image; exact versions, firmware hashes and first source-compatibility results are recorded in ADR-0001. Final Buildroot source selection remains in progress.
+**Execution:** Phase 4 continues with task #5. ADR-0001 selects the engineering source baseline; firmware terms remain unresolved. Three 2026-10-22 boot-only snapshots reach Linux 6.12.114 userspace; a later isolated radio boot reaches firmware readiness and successful HCI Reset. Full Buildroot runtime, pairing/AP and accessory operation remain unverified; downstream dependencies stay in place.
 **Date:** 2026-10-14
 **Specification:** [Approved hardware-support spec, issue #4](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/4).
 **Target:** Radxa ZERO 3W, 1 GB RAM, no eMMC, microSD boot.
 **Task tracker:** GitHub Issues in `morre95/MyWirelessAndroidAutoDongle`.
+**Session handoff:** [2026-10-22 Bluetooth-test preparation](../docs/handoffs/2026-10-22-radxa-bluetooth-test.md) records the next prepared image and physical checkpoint. The [radio-test record](../docs/handoffs/2026-10-22-radxa-radio-test.md) records successful firmware/reset evidence and verified recovery. The [2026-10-21 source-selection record](../docs/handoffs/2026-10-21-radxa-zero3w.md) retains the earlier commit/reference details and firmware inquiry.
 
 ## Overview and assumptions
 
@@ -203,3 +204,42 @@ The follow-on ARM64 object build used LLVM 23.1.3 and the verified 6.12.114/AIC 
 The next slice completed full Linux 6.12.114 `Image`, modules and upstream ZERO 3W DT compilation, then linked the three AIC `.ko` files against the generated symbol table with MODPOST errors enabled. All five accessory/composite/AIC modules are ARM64 with matching vermagic. An isolated board-local check also built U-Boot 2026.01 with Buildroot's existing rkbin pin, RK3566 DDR 1.23 and RK3568 BL31 1.44. Packed-image checks verified the DDR/SPL/header hashes, FIT placement and all six BL31 load segments. The configuration and reproduction commands are saved under `board/radxa/zero3w/checks/`; they are not a shipping target. Live DT reads confirmed the recorded radio/antenna pins, and the installed startup scripts exposed a bounded UART HCI reset before `hciattach`. ADR-0001 records the results and limits. No SD card was flashed. AIC-specific DT/runtime integration, firmware terms, full image assembly and physical operation remain pending; #5 stays open and #6 retains its prerequisite.
 
 After merge into main (`42ccde9`), a separate DT preparation slice adds a build-only V1.12M/AIC8800D80 variant with no eMMC, the observed antenna GPIO and vendor-reference SDIO settings. It compiles on the pinned 6.12.114 kernel; compiled-tree checks pass and the generic ZERO 3W DTB remains byte-identical. Bluetooth reset/wake initialization and physical testing remain pending. Upstream licensing discussion clarifies GPL v2 driver source versus GPL v3 packaging, but does not resolve the selected opaque firmware files. ADR-0001 records the source links and limits. Task #5 remains open; this does not bypass downstream prerequisites or provide a shipping image.
+
+After that slice merged (`e7ef1f1`), a standalone UART HCI Reset candidate replaces the factory-server dependency in the source investigation. All 13 host pseudo-terminal tests pass for command/event handling, UART setup, error paths, fixed timeout and cleanup; ARM64 cross-compilation passes with strict warnings. It is not installed by a package or service. Physical GPIO/firmware sequencing and UART/HCI handoff remain pending. The owner inserted the reference Radxa OS card in the reader; no Buildroot image is ready to flash. A complete read-only recovery copy was saved locally and verified by decompression/SHA-256; the configured image and its private metadata stay in ignored build output. Task #5 stays open and downstream prerequisites remain unchanged.
+
+The owner then booted the reference card in the Radxa. Read-only diagnostics found an installed reset-service timeout overlapping AIC firmware loading, despite a subsequently powered controller; the next startup contract must gate on firmware readiness and reset success. A controlled physical test with no connected Bluetooth devices verified the helper's N_HCI guard, one successful reset on the freed UART (about 5 ms), and restoration of active hciattach/BlueZ, powered hci0 and identical selected GPIO levels. Temporary files and the fallback timer were removed; boot/firmware/configuration stayed unchanged. The separate vendor `bt_default` rfkill instance remained blocked with PC1 low, so its GPIO sequence must not be assumed necessary for this AIC path. ADR-0001 records the evidence and source correlation. This is one Radxa OS reference test, not a Buildroot/mainline or cold-start acceptance result. Readiness integration, mainline pin defaults, firmware terms and downstream tasks remain pending.
+
+## Current diagnostic slice: mainline Bluetooth attachment — 2026-10-22
+
+The owner authorized the next test after successful mainline firmware/HCI Reset
+and verified full-card recovery. This remains compatibility evidence for #5;
+the shipping driver/startup tasks (#10–#12) retain their dependencies.
+Use the [radio-test handoff](../docs/handoffs/2026-10-22-radxa-radio-test.md) for
+the working image inputs and current restored-reference state.
+
+1. Build an isolated ARM64 BlueZ/D-Bus userspace with the pinned Buildroot and
+   Bootlin profile. Keep kernel, DT, radio inputs and all Pi targets unchanged.
+   Verify normal download hashes, ARM64 ELF/runtime dependencies and source
+   versions. Files: diagnostic defconfig, test procedure and this plan.
+2. Extend the private diagnostic with required Bluetooth module dependencies,
+   synchronous firmware/reset gating, foreground UART attachment, D-Bus/BlueZ
+   startup and an explicit powered-adapter check. Fail on each prerequisite;
+   capture stage/daemon/kernel logs and clean up processes before poweroff.
+   Verify failure paths with host fixtures and inspect the packed image.
+   Keep each implementation increment within five files.
+3. Run one owner-assisted card test, preserve read-only evidence, then restore
+   and verify the selected full-card backup and reference services. Actual
+   phone discovery/pairing requires separate evidence beyond adapter startup.
+
+Checkpoint: image/build checks and failure-path tests must pass before the
+owner moves the card for writing. Do not interrupt the running reference while
+preparing. Firmware images/logs remain private; firmware terms, regulatory/AP
+warnings and full dongle acceptance remain unresolved.
+
+The local preparation checkpoint passed in `8ff34f0`: an isolated BlueZ/D-Bus
+userspace and the private 224 MiB image are built, 24 native/stage/image checks
+pass, and the same nine agent cases also pass with the actual ARM64/GIO binary
+under QEMU. Physical UART/BlueZ/phone execution is pending. The owner confirmed
+phone availability; the test includes a three-minute pairing window and requires
+actual paired-property evidence, not merely a powered adapter. Follow the latest
+Bluetooth handoff for card movement, identity-checked writing and recovery.

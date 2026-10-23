@@ -1,0 +1,128 @@
+From: MyWirelessAndroidAutoDongle contributors
+Subject: [PATCH] arm64: dts: prepare AIC Bluetooth reference pin defaults
+
+The working V1.12M/AIC8800D80 reference keeps GPIO0 PC1 output low,
+PB3 input low and PB4 input high while Bluetooth is powered and the vendor
+rfkill instance is blocked. Its rfkill probe drives PC1 low, but the later
+power-on and RTS pulse path is not used. AIC firmware loading enables BT
+with UART low-power mode disabled; do not invent a GPIO reset pulse.
+
+Hold PC1 physically low with pull-down and leave PB3/PB4 as pulled-up inputs.
+Match the reference Schmitt settings and raw drive register fields: the
+RK3566 setter accepts levels, not the generic diagnostic mA labels. Level 0
+encodes 0x01 for the three GPIOs, level 3 encodes 0x0f for UART RX/TX/RTS,
+and level 1 encodes 0x03 for CTS. Do not copy the diagnostic 4/12 labels.
+
+Input hogs reserve the lines and do not provide wake IRQ handling: revisit
+ownership before enabling GPIO wake or btlpm. UART1 retains all four flow
+control pins. Wi-Fi PC0 remains owned by mmc-pwrseq-simple; the generic ZERO
+3W tree stays unchanged. Slew rate is not set by the mainline driver.
+
+This is a compiled experiment candidate, not evidence of mainline operation.
+Apply after the board's 0004 AIC DT preparation patch.
+
+Sources:
+https://github.com/radxa/kernel/blob/fd366906451692033f1ba273e77e7e2f936c78db/net/rfkill/rfkill-bt.c
+https://github.com/gregkh/linux/blob/85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e/drivers/pinctrl/pinctrl-rockchip.c
+https://github.com/gregkh/linux/blob/85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e/Documentation/devicetree/bindings/gpio/gpio.txt
+---
+diff --git a/arch/arm64/boot/dts/rockchip/rk3566-radxa-zero-3w-aic8800d80.dts b/arch/arm64/boot/dts/rockchip/rk3566-radxa-zero-3w-aic8800d80.dts
+--- a/arch/arm64/boot/dts/rockchip/rk3566-radxa-zero-3w-aic8800d80.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3566-radxa-zero-3w-aic8800d80.dts
+@@ -16,7 +16,79 @@
+ 	};
+ };
+ 
++&gpio0 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&aic_bt_pc1 &aic_bt_pb3 &aic_bt_pb4>;
++
++	/* Preserve reference directions; no reset pulse is implied. */
++	aic-bt-pc1-hog {
++		gpio-hog;
++		gpios = <RK_PC1 GPIO_ACTIVE_HIGH>;
++		output-low;
++		line-name = "aic-bt-pc1-low";
++	};
++
++	aic-bt-pb3-hog {
++		gpio-hog;
++		gpios = <RK_PB3 GPIO_ACTIVE_HIGH>;
++		input;
++		line-name = "aic-bt-pb3-input";
++	};
++
++	aic-bt-pb4-hog {
++		gpio-hog;
++		gpios = <RK_PB4 GPIO_ACTIVE_HIGH>;
++		input;
++		line-name = "aic-bt-pb4-input";
++	};
++};
++
+ &pinctrl {
++	/* RK3566 drive-strength values are levels, not diagnostic mA labels. */
++	aic_bt_pulldown: pcfg-aic-bt-pulldown {
++		bias-pull-down;
++		drive-strength = <0>;
++		input-schmitt-enable;
++	};
++
++	aic_bt_pullup: pcfg-aic-bt-pullup {
++		bias-pull-up;
++		drive-strength = <0>;
++		input-schmitt-enable;
++	};
++
++	aic_uart_pullup: pcfg-aic-uart-pullup {
++		bias-pull-up;
++		drive-strength = <3>;
++		input-schmitt-enable;
++	};
++
++	aic_uart_rts: pcfg-aic-uart-rts {
++		bias-disable;
++		drive-strength = <3>;
++		input-schmitt-enable;
++	};
++
++	aic_uart_cts: pcfg-aic-uart-cts {
++		bias-disable;
++		drive-strength = <1>;
++		input-schmitt-enable;
++	};
++
++	bluetooth {
++		aic_bt_pc1: aic-bt-pc1 {
++			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &aic_bt_pulldown>;
++		};
++
++		aic_bt_pb3: aic-bt-pb3 {
++			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &aic_bt_pullup>;
++		};
++
++		aic_bt_pb4: aic-bt-pb4 {
++			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &aic_bt_pullup>;
++		};
++	};
++
+ 	antenna {
+ 		aic_antenna_enable: antenna-enable {
+ 			rockchip,pins = <3 RK_PD3 RK_FUNC_GPIO &pcfg_pull_down>;
+@@ -52,3 +124,16 @@
+ &sdmmc1_cmd {
+ 	rockchip,pins = <2 RK_PA7 1 &pcfg_pull_up_drv_level_12>;
+ };
++
++&uart1m0_ctsn {
++	rockchip,pins = <2 RK_PB6 2 &aic_uart_cts>;
++};
++
++&uart1m0_rtsn {
++	rockchip,pins = <2 RK_PB5 2 &aic_uart_rts>;
++};
++
++&uart1m0_xfer {
++	rockchip,pins = <2 RK_PB3 2 &aic_uart_pullup>,
++		       <2 RK_PB4 2 &aic_uart_pullup>;
++};
