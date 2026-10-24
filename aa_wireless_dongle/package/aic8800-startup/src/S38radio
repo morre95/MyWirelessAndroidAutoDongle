@@ -1,0 +1,85 @@
+#!/bin/sh
+#
+# Start the AIC8800D80 radio: Wi-Fi first, then the Bluetooth UART.
+# Follows ADR-0001's startup contract; every failed stage stops the sequence.
+#
+
+UART=/dev/ttyS1
+PIDFILE=/var/run/btattach.pid
+FIRMWARE_DIR=/lib/firmware/aic8800_fw/SDIO/aic8800D80
+# Bounds in one-second polls, not fixed delays.
+SDIO_TIMEOUT=10
+READY_TIMEOUT=10
+HCI_TIMEOUT=10
+
+# Override only for isolated host fixtures; the board uses /sys.
+sysfs=${RADXA_SYSFS_ROOT:-/sys}
+
+fail() {
+	echo "Radio startup failed: $1" >&2
+	exit 1
+}
+
+sdio_present() {
+	for function in "$sysfs"/bus/sdio/devices/*; do
+		[ "$(cat "$function/vendor" 2>/dev/null)" = 0xc8a1 ] &&
+			[ "$(cat "$function/device" 2>/dev/null)" = 0x0082 ] && return 0
+	done
+	return 1
+}
+
+# Poll a command once per second, up to the given number of retries.
+wait_for() {
+	retries=$1
+	shift
+	attempt=0
+	until "$@"; do
+		[ "$attempt" -lt "$retries" ] || return 1
+		attempt=$((attempt + 1))
+		sleep 1
+	done
+}
+
+start_wifi() {
+	wait_for "$SDIO_TIMEOUT" sdio_present ||
+		fail "AIC8800D80 Wi-Fi SDIO device c8a1:0082 not found"
+	# Loads aic8800_bsp first, which uploads the Bluetooth and Wi-Fi firmware
+	# synchronously. custregd=0 replaces the driver's permissive built-in
+	# rules with the kernel regulatory database, so AAWG_COUNTRY_CODE applies.
+	modprobe aic8800_fdrv custregd=0 ||
+		fail "cannot load aic8800_fdrv; check the driver modules and the firmware in $FIRMWARE_DIR (see dmesg)"
+	wait_for "$READY_TIMEOUT" aic-firmware-ready.sh wlan0 ||
+		fail "Wi-Fi firmware not ready on wlan0"
+}
+
+hci_present() {
+	[ -d "$sysfs/class/bluetooth/hci0" ]
+}
+
+start_bluetooth() {
+	modprobe hci_uart || fail "cannot load hci_uart"
+	aic-hci-reset "$UART" || fail "Bluetooth HCI reset failed on $UART"
+	start-stop-daemon -S -b -q -m -p "$PIDFILE" -x /usr/bin/btattach \
+		-- -B "$UART" -P h4 -S 1500000 || fail "cannot start btattach on $UART"
+	if ! wait_for "$HCI_TIMEOUT" hci_present; then
+		start-stop-daemon -K -q -p "$PIDFILE"
+		fail "hci0 did not appear within $HCI_TIMEOUT s"
+	fi
+}
+
+case "$1" in
+	start)
+		echo "Starting radio..."
+		start_wifi
+		start_bluetooth
+		echo "Radio started: wlan0 and hci0"
+		;;
+	stop)
+		start-stop-daemon -K -q -p "$PIDFILE"
+		;;
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 1
+esac
+
+exit 0

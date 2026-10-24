@@ -34,7 +34,9 @@ class DefconfigTests(unittest.TestCase):
                       (CONFIGS / "radxa-zero3w_defconfig").read_text().splitlines())
 
     def test_raspberry_pi_targets_do_not_select_the_driver(self):
-        for defconfig in CONFIGS.glob("rpi*_defconfig"):
+        defconfigs = sorted(CONFIGS.glob("raspberrypi*_defconfig"))
+        self.assertEqual(len(defconfigs), 5)
+        for defconfig in defconfigs:
             self.assertNotIn("AIC8800", defconfig.read_text(), defconfig.name)
 
 

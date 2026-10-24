@@ -71,12 +71,39 @@ Findings, identical in both copies except the seed:
 
 ## Not established
 
-- The boot log. Without a serial console or network it is deferred to the first
-  task with SSH over Wi-Fi (#10).
-- That the board left `rootfs` unmodified. The host's read-write mounts changed it,
-  so the copies cannot show that the board mounted it read-only.
+- The boot log, and that the board mounts `rootfs` read-only. Both were delivered
+  by #12; see [Boot log](#boot-log-2026-10-24).
 - Radio, USB gadget and `aawgd` behaviour (#9–#12), car power, and the LED state,
   which was not recorded.
+
+## Boot log (2026-10-24)
+
+Owner decision: #12 delivers this deferred evidence from its own image, because the
+#8 image has no network. It is the same image layout plus the radio startup and
+kernel patch 0006. The board booted from computer USB power, and `dmesg` and
+`/var/log/messages` were copied over SSH on the dongle's Wi-Fi, 81 s after boot. The
+init scripts' output is in `messages` under the `console` tag, because `rcS` sends
+it to syslog.
+
+| File | Lines | SHA-256 |
+| --- | --- | --- |
+| `dmesg.txt` | 1,179 | `b8b5207d0f7ba626f1e1b1a569fbc578b16ce38083646f68c03217ec2b12a739` |
+| `messages.txt` | 1,371 | `0efe6c99d4b6e0cc4da32ac42afe132793590bb81aff590c8089f719245348cf` |
+
+Both contain the board's and the phone's Bluetooth and Wi-Fi addresses, so they stay
+in the ignored bundle `buildroot/output/radxa-radio-20261024/image2-boot-1-ssh/`.
+What they show:
+
+- `Linux version 6.12.114`, built by Buildroot's Bootlin GCC 14.3.0; `/sbin/init` at 1.02 s.
+- `rcS` runs every init script in order. `S38radio` starts at 1 s and finishes at
+  4 s, followed by `bluetoothd`, the network with hostapd, `dropbear`, `dnsmasq`,
+  `bt-agent`, the USB gadgets and `aawgd`, which listens at 7 s.
+- `mount` reports `/dev/root` on `/` as `ext4 (ro)`, `/boot` as `vfat (ro)` and
+  `/persist` as `ext4 (rw)`, so the board does mount `rootfs` read-only.
+- Kernel warnings: the AIC power-control timer's `bus down` at 2.39 s, the UART
+  `failed to request DMA` at 3.89 s, and the deferred `fd000000.usb` probe at 14 s.
+  The [radio startup handoff](2026-10-24-radxa-radio-startup.md) explains why none
+  of them needs action.
 
 ## State and recovery
 

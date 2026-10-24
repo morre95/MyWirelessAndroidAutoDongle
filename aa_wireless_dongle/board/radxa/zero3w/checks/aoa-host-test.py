@@ -7,6 +7,10 @@ handshake, waits for the accessory gadget, then resets the accessory from the
 host and checks that it is configured again. Uses only usbfs, so run it as root:
 
     sudo python3 aoa-host-test.py --log LOGFILE
+
+With --version-exchange it skips the reset. It instead sends an Android Auto
+version request on the accessory's bulk OUT endpoint and requires the phone's
+version response on bulk IN, which shows data flowing both ways through aawgd.
 """
 import argparse
 import ctypes
@@ -14,6 +18,7 @@ import fcntl
 import json
 import os
 from pathlib import Path
+import struct
 import sys
 import time
 
@@ -31,6 +36,17 @@ VENDOR_IN = 0xC0
 VENDOR_OUT = 0x40
 CONTROL_TIMEOUT_MS = 1000
 RESET_SETTLE_S = 2
+ACCESSORY_INTERFACE = 0
+BULK_TIMEOUT_MS = 30000
+BULK_READ_SIZE = 16384
+
+# Android Auto control-channel frame: channel, flags, big-endian payload length,
+# then a big-endian message id. Flags 0x03 marks one unencrypted frame.
+AA_CONTROL_CHANNEL = 0
+AA_SINGLE_FRAME = 0x03
+AA_VERSION_REQUEST = 0x0001
+AA_VERSION_RESPONSE = 0x0002
+AA_VERSION = (1, 1)
 
 
 class CtrlTransfer(ctypes.Structure):
@@ -45,8 +61,31 @@ def ioc(direction, number, size):
     return (direction << 30) | (size << 16) | (ord("U") << 8) | number
 
 
+class BulkTransfer(ctypes.Structure):
+    """struct usbdevfs_bulktransfer from linux/usbdevice_fs.h."""
+    _fields_ = [("ep", ctypes.c_uint), ("len", ctypes.c_uint), ("timeout", ctypes.c_uint),
+                ("data", ctypes.c_void_p)]
+
+
 USBDEVFS_CONTROL = ioc(3, 0, ctypes.sizeof(CtrlTransfer))
+USBDEVFS_BULK = ioc(3, 2, ctypes.sizeof(BulkTransfer))
+USBDEVFS_CLAIMINTERFACE = ioc(2, 15, ctypes.sizeof(ctypes.c_uint))
 USBDEVFS_RESET = ioc(0, 20, 0)
+
+
+def version_request():
+    payload = struct.pack(">HHH", AA_VERSION_REQUEST, *AA_VERSION)
+    return struct.pack(">BBH", AA_CONTROL_CHANNEL, AA_SINGLE_FRAME, len(payload)) + payload
+
+
+def parse_version_response(frame):
+    """Return (major, minor, status) from a control-channel version response."""
+    if len(frame) < 12:
+        raise ValueError(f"Frame too short for a version response: {len(frame)} bytes")
+    channel, _flags, length, message = struct.unpack_from(">BBHH", frame)
+    if channel != AA_CONTROL_CHANNEL or message != AA_VERSION_RESPONSE or length < 8:
+        raise ValueError(f"Not a version response: channel {channel}, message {message:#06x}")
+    return struct.unpack_from(">HHH", frame, 6)
 
 
 class Log:
@@ -127,6 +166,38 @@ def switch_to_accessory(log, device):
         os.close(fd)
 
 
+def bulk_endpoints(device):
+    """Return the (in, out) bulk endpoint addresses of the accessory interface."""
+    endpoints = {}
+    for endpoint in (device / f"{device.name}:1.{ACCESSORY_INTERFACE}").glob("ep_*"):
+        if read_attr(endpoint, "type") == "Bulk":
+            endpoints[read_attr(endpoint, "direction")] = int(read_attr(endpoint, "bEndpointAddress"), 16)
+    return endpoints["in"], endpoints["out"]
+
+
+def bulk(fd, endpoint, data=b"", length=0):
+    buffer = ctypes.create_string_buffer(data, max(len(data), length))
+    transfer = BulkTransfer(endpoint, len(data) or length, BULK_TIMEOUT_MS, ctypes.addressof(buffer))
+    transferred = fcntl.ioctl(fd, USBDEVFS_BULK, transfer)
+    return buffer.raw[:transferred]
+
+
+def exchange_version(log, device):
+    endpoint_in, endpoint_out = bulk_endpoints(device)
+    fd = open_node(device)
+    try:
+        fcntl.ioctl(fd, USBDEVFS_CLAIMINTERFACE, ctypes.c_uint(ACCESSORY_INTERFACE))
+        request = version_request()
+        bulk(fd, endpoint_out, request)
+        log.event("version_request_sent", endpoint=f"{endpoint_out:#04x}", bytes=len(request))
+        response = bulk(fd, endpoint_in, length=BULK_READ_SIZE)
+        major, minor, status = parse_version_response(response)
+        log.event("version_response_received", endpoint=f"{endpoint_in:#04x}", bytes=len(response),
+                  major=major, minor=minor, status=status)
+    finally:
+        os.close(fd)
+
+
 def reset(log, device):
     fd = open_node(device)
     try:
@@ -144,6 +215,8 @@ def main():
     parser.add_argument("--log", type=Path, required=True, help="new JSON-lines log file")
     parser.add_argument("--boot-timeout", type=int, default=180,
                         help="seconds to wait for the default gadget after power-up")
+    parser.add_argument("--version-exchange", action="store_true",
+                        help="exchange Android Auto version messages instead of resetting")
     args = parser.parse_args()
     if os.geteuid() != 0:
         raise SystemExit("usbfs control transfers need root; run with sudo")
@@ -153,6 +226,10 @@ def main():
     default = wait_for(log, {DEFAULT_GADGET}, "default", args.boot_timeout)
     switch_to_accessory(log, default)
     accessory = wait_for(log, ACCESSORY_GADGETS, "accessory", 10)
+    if args.version_exchange:
+        exchange_version(log, accessory)
+        log.event("passed")
+        return
     reset(log, accessory)
     # A port reset re-enumerates the device in place; the board's uevent log
     # records the gadget side of it.

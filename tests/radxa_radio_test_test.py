@@ -13,6 +13,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKS = ROOT / "aa_wireless_dongle/board/radxa/zero3w/checks"
+STARTUP = ROOT / "aa_wireless_dongle/package/aic8800-startup/src"
 
 
 class RadioStages(unittest.TestCase):
@@ -163,11 +164,11 @@ class RadioImage(unittest.TestCase):
 
     def test_packaged_scripts_match_current_sources(self):
         manifest = json.loads((self.directory / 'manifest.json').read_text())
-        for name, source in [('init', 'radio-test-init.sh'),
-                             ('aic-radio-test.sh', 'aic-radio-test.sh'),
-                             ('bin/aic-firmware-ready.sh', 'aic-firmware-ready.sh')]:
+        for name, source in [('init', CHECKS / 'radio-test-init.sh'),
+                             ('aic-radio-test.sh', CHECKS / 'aic-radio-test.sh'),
+                             ('bin/aic-firmware-ready.sh', STARTUP / 'aic-firmware-ready.sh')]:
             self.assertEqual(manifest['ramfs_sha256'][name],
-                             hashlib.sha256((CHECKS / source).read_bytes()).hexdigest())
+                             hashlib.sha256(source.read_bytes()).hexdigest())
 
     def test_payload_is_limited_to_selected_modules_and_six_firmware_files(self):
         archive = gzip.decompress((self.directory / "boot/initramfs.cpio.gz").read_bytes())
