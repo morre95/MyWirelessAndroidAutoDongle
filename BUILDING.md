@@ -40,6 +40,7 @@ make later builds faster.
 | Raspberry Pi 3 A+ | `rpi3a` | `raspberrypi3a_defconfig` | `images/sdcard-raspberrypi3a.img` |
 | Raspberry Pi 4 | `rpi4` | `raspberrypi4_defconfig` | `images/sdcard-raspberrypi4.img` |
 | Raspberry Pi 5 | `rpi5` | `raspberrypi5_defconfig` | `images/sdcard-raspberrypi5.img` |
+| Radxa ZERO 3W | `radxa-zero3w` | `radxa-zero3w_defconfig` | `images/sdcard-radxa-zero3w.img` |
 
 For an interactive shell inside the build container, run:
 

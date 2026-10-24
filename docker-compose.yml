@@ -38,6 +38,11 @@ services:
     environment:
       - BOARD_NAME=raspberrypi5
 
+  radxa-zero3w:
+    <<: *generate_image
+    environment:
+      - BOARD_NAME=radxa-zero3w
+
 volumes:
   dl:
   output:
