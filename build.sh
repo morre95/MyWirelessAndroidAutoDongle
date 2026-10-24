@@ -26,6 +26,7 @@ board_label() {
 		rpi3a) echo "Raspberry Pi 3 A+" ;;
 		rpi4) echo "Raspberry Pi 4" ;;
 		rpi5) echo "Raspberry Pi 5" ;;
+		radxa-zero3w) echo "Radxa ZERO 3W" ;;
 		*) echo "$1" ;;
 	esac
 }
@@ -43,7 +44,7 @@ usage() {
 		Boards:
 	EOF
 	for board in "${BOARDS[@]}"; do
-		printf '  %-7s %s\n' "$board" "$(board_label "$board")"
+		printf '  %-13s %s\n' "$board" "$(board_label "$board")"
 	done
 	printf '\nImages are written to images/sdcard-<defconfig>.img\n'
 }
@@ -77,17 +78,17 @@ check_build_prerequisites() {
 }
 
 # The board list comes from docker-compose.yml so the two cannot drift apart.
-# Board services are named rpi*; 'bash' and the shared 'generate_image_*'
-# template are not build targets. Compose does not promise an order, so sort
+# Board services are named rpi* or radxa*; 'bash' and the shared
+# 'generate_image_*' template are not build targets. Compose does not promise an order, so sort
 # for a stable menu.
 read_boards() {
 	local services
 	services=$(docker compose config --services) ||
 		die "could not read the services from docker-compose.yml"
 
-	mapfile -t BOARDS < <(printf '%s\n' "$services" | grep '^rpi' | sort -V)
+	mapfile -t BOARDS < <(printf '%s\n' "$services" | grep -E '^(rpi|radxa)' | sort -V)
 	[ "${#BOARDS[@]}" -gt 0 ] ||
-		die "docker-compose.yml defines no rpi* board services"
+		die "docker-compose.yml defines no rpi* or radxa* board services"
 }
 
 is_board() {
