@@ -1,0 +1,10 @@
+config BR2_PACKAGE_AIC8800_STARTUP
+	bool "aic8800-startup"
+	depends on BR2_PACKAGE_AIC8800
+	help
+	  Boot-time startup helpers for the AIC8800D80 radio on the
+	  Radxa ZERO 3W: aic-firmware-ready.sh checks firmware readiness
+	  and aic-hci-reset resets the Bluetooth controller over its UART.
+
+comment "aic8800-startup needs aic8800"
+	depends on !BR2_PACKAGE_AIC8800

@@ -13,6 +13,7 @@ import sys
 import tempfile
 
 CHECKS = Path(__file__).resolve().parent
+STARTUP = CHECKS.parents[3] / "package/aic8800-startup/src"
 sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location("boot_test", CHECKS / "make-boot-test.py")
 boot = importlib.util.module_from_spec(spec)
@@ -50,11 +51,11 @@ def radio_inputs(prep):
         files[f"lib/firmware/aic8800_fw/SDIO/aic8800D80/{name}"] = path
     helper = prep / "aic-hci-reset"
     boot.require_hash(helper, "95d4d948230f00bc418eff219ca48c56da1e1bda8ffae9fee91c31f232023026")
-    boot.require_hash(CHECKS / "aic-hci-reset.c",
+    boot.require_hash(STARTUP / "aic-hci-reset.c",
                       "119ed8bfda09aa75b872fdcddf919a4f6e5c2cee0780e58b16c00c3bdc3180f0")
     boot.require_static_arm64(helper)
     files.update({"bin/aic-hci-reset": helper,
-                  "bin/aic-firmware-ready.sh": CHECKS / "aic-firmware-ready.sh",
+                  "bin/aic-firmware-ready.sh": STARTUP / "aic-firmware-ready.sh",
                   "aic-radio-test.sh": CHECKS / "aic-radio-test.sh",
                   "init": CHECKS / "radio-test-init.sh"})
     return files
@@ -72,7 +73,7 @@ def assemble(output, busybox, prep):
     if not {"timeout", "insmod", "grep", "readlink"}.issubset(applets):
         raise ValueError("BusyBox lacks radio-stage applets")
     for script in (CHECKS / "radio-test-init.sh", CHECKS / "aic-radio-test.sh",
-                   CHECKS / "aic-firmware-ready.sh"):
+                   STARTUP / "aic-firmware-ready.sh"):
         boot.run("qemu-aarch64-static", str(busybox), "ash", "-n", str(script))
     with tempfile.TemporaryDirectory(dir=boot.OUTPUT_ROOT) as temporary:
         template = boot.assemble(Path(temporary) / "base", busybox)

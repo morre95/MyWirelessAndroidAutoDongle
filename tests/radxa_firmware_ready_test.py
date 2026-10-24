@@ -8,7 +8,7 @@ import unittest
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / (
-    "aa_wireless_dongle/board/radxa/zero3w/checks/aic-firmware-ready.sh"
+    "aa_wireless_dongle/package/aic8800-startup/src/aic-firmware-ready.sh"
 )
 
 

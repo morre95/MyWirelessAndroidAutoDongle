@@ -90,11 +90,13 @@ compiled properties; full schema and physical mainline validation remain pending
 ## Bounded Bluetooth UART reset candidate
 
 The standalone `aic-hci-reset.c` helper prepares the reset step observed in
-Radxa OS without the factory tool's TCP server. Build and test on a Linux host:
+Radxa OS without the factory tool's TCP server. Since #12 it lives in
+`package/aic8800-startup/src/`, which installs it as `/usr/sbin/aic-hci-reset`
+and runs it from `S38radio`. Build and test on a Linux host:
 
 ```sh
 cc -std=c11 -Wall -Wextra -Werror -Wconversion -Wshadow \
-    aa_wireless_dongle/board/radxa/zero3w/checks/aic-hci-reset.c \
+    aa_wireless_dongle/package/aic8800-startup/src/aic-hci-reset.c \
     -o /tmp/radxa-hci-reset
 python3 tests/radxa_hci_reset_test.py
 ```
@@ -113,7 +115,7 @@ deadline. Normal success/error exits restore termios and release exclusive mode.
 It refuses an exclusive UART or a non-N_TTY line discipline; existing raw-TTY
 readers must still be stopped by the board startup sequence.
 
-This helper is not installed by a package or startup service. One physical test
+Before #12 this helper was not installed by any package. One physical test
 on the Radxa OS 6.1.84 reference passed: the attached-UART guard refused access,
 the freed UART completed reset in approximately 5 ms, and hciattach/BlueZ were
 restored with identical selected GPIO levels. Temporary test files were removed.
@@ -125,11 +127,12 @@ verification remain pending. See the ADR for protocol references and limits.
 ## Firmware load-ordering predicate candidate
 
 `aic-firmware-ready.sh` checks the pinned D80 SDIO candidate without changing
-radio state. Host verification needs only Python 3, a POSIX shell, `cat`, `grep`
+radio state. Since #12 it lives in `package/aic8800-startup/src/` and is
+installed as `/usr/sbin/aic-firmware-ready.sh`. Host verification needs only Python 3, a POSIX shell, `cat`, `grep`
 and `readlink -f`:
 
 ```sh
-sh -n aa_wireless_dongle/board/radxa/zero3w/checks/aic-firmware-ready.sh
+sh -n aa_wireless_dongle/package/aic8800-startup/src/aic-firmware-ready.sh
 python3 tests/radxa_firmware_ready_test.py
 ```
 
@@ -151,18 +154,18 @@ uploads before fdrv module initialization succeeds. Module-directory presence,
 netdev presence or the driver's internal completion signal alone is weaker:
 the latter ignores a platform-init return and precedes host-wake IRQ setup.
 
-Future startup integration must serialize these stages, stopping on every error:
+The shipping `S38radio` (#12) serializes these stages, stopping on every error:
 
 1. Load the pinned BSP/fdrv modules synchronously with the audited build flags
    (`CONFIG_MCU_MESSAGE=n`) and normal work mode.
 2. Require `aic-firmware-ready.sh` success.
 3. Require bounded `aic-hci-reset /dev/ttyS1` success on the unattached UART.
-4. Start hciattach, then BlueZ after attachment is established.
+4. Attach the UART (`btattach` in the shipping image), then BlueZ after attachment is established.
 
 This script takes one snapshot; it neither polls nor starts any later stage.
 It assumes startup owns module/power/mode changes. It does not establish
 firmware identity, UART response, mainline pin correctness or cold-start
-reliability. It is not installed in a runtime overlay. Seventeen fixture tests
+reliability. Seventeen fixture tests
 pass. One read-only run on the Radxa OS 6.1.84 reference passed on `wlan0`
 with status 0; a missing-interface check failed with status 1. The first board
 run exposed the missing `aicbsp_info` path component and the vendor kernel's
