@@ -1,0 +1,13 @@
+config BR2_PACKAGE_AIC8800
+	bool "aic8800"
+	depends on BR2_LINUX_KERNEL
+	help
+	  AIC8800 SDIO Wi-Fi and Bluetooth BSP driver (aic8800_bsp and
+	  aic8800_fdrv) from Radxa's packaging of the AIC SDK, for the
+	  AIC8800D80 radio on the Radxa ZERO 3W. Firmware is not
+	  installed by this package.
+
+	  https://github.com/radxa-pkg/aic8800
+
+comment "aic8800 needs a Linux kernel to be built"
+	depends on !BR2_LINUX_KERNEL
