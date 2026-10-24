@@ -5,9 +5,10 @@ on:
   push:
     branches: [ "main" ]
     tags: [ "v*" ]
-    # Documentation changes can't affect the image, and a full build is five
-    # boards at ~1h40m each. Path filters are not evaluated for tag pushes, so
-    # a v* tag still builds even if it only touches the files listed here.
+    # Documentation changes can't affect the image, and a full build is six
+    # boards at up to ~1h40m each. Path filters are not evaluated for tag
+    # pushes, so a v* tag still builds even if it only touches the files listed
+    # here.
     paths-ignore:
       - '**.md'
       - 'LICENSE'
@@ -30,10 +31,19 @@ jobs:
         - raspberrypi4
         - raspberrypi3a
         - raspberrypi5
+        - radxa-zero3w
 
     runs-on: ubuntu-latest
 
     steps:
+    # The Radxa build tree needs about 14 GB, more than the runner leaves free.
+    # Remove preinstalled SDKs that no build here uses.
+    - name: Free disk space
+      if: matrix.defconfig == 'radxa-zero3w'
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        df -h /
+
     - uses: actions/checkout@v7
       with:
         submodules: recursive
@@ -58,14 +68,18 @@ jobs:
       run: make
       working-directory: ./buildroot
 
-    - name: Compress sdcard.img
-      run: xz -c sdcard.img > ${{ matrix.defconfig }}-sdcard.img.xz
+    - name: Compress sdcard.img and write its checksum
+      run: |
+        xz -c sdcard.img > ${{ matrix.defconfig }}-sdcard.img.xz
+        sha256sum ${{ matrix.defconfig }}-sdcard.img.xz > ${{ matrix.defconfig }}-sdcard.img.xz.sha256
       working-directory: ./buildroot/output/images
 
     - uses: actions/upload-artifact@v7
       with:
         name: WirelessAndroidAutoDongle-${{ matrix.defconfig }}
-        path: ./buildroot/output/images/${{ matrix.defconfig }}-sdcard.img.xz
+        path: |
+          ./buildroot/output/images/${{ matrix.defconfig }}-sdcard.img.xz
+          ./buildroot/output/images/${{ matrix.defconfig }}-sdcard.img.xz.sha256
   
   merge:
     runs-on: ubuntu-latest
@@ -93,11 +107,17 @@ jobs:
           merge-multiple: true
           path: images
 
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: WirelessAndroidAutoDongle-radxa*
+          merge-multiple: true
+          path: images
+
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: >
-          gh release create "${{ github.ref_name }}" images/*.img.xz
+          gh release create "${{ github.ref_name }}" images/*.img.xz images/*.sha256
           --repo "${{ github.repository }}"
           --title "${{ github.ref_name }}"
           --generate-notes
