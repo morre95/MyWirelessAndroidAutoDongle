@@ -19,4 +19,8 @@ define AIC8800_STARTUP_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/aic-firmware-ready.sh
 endef
 
+define AIC8800_STARTUP_INSTALL_INIT_SYSV
+	$(INSTALL) -D -m 0755 $(@D)/S38radio $(TARGET_DIR)/etc/init.d/S38radio
+endef
+
 $(eval $(generic-package))
