@@ -2,11 +2,11 @@
 
 ## Status
 
-Proposed for release; the engineering source baseline below is selected for subsequent integration as of 2026-10-21. Kernel/accessory/AIC linking, boot-chain packing, compiled-DT checks and three diagnostic Linux 6.12.114 boots support that choice. The 2026-10-22 boot-only experiment reached userspace with the selected DT; a later isolated radio boot confirmed firmware readiness and successful HCI Reset. Firmware redistribution terms stayed unresolved until #11. On 2026-10-23 the owner closed [task #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) after tracker review, with the unresolved firmware terms recorded below and their resolution handed to [task #11](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/11). On 2026-10-24, #11 settled them by moving to the redistributable linux-firmware release; promoting this ADR to Accepted awaits the owner's decision. Downstream dependencies are unchanged. This record does not establish a working Buildroot dongle image.
+Proposed for release; the engineering source baseline below is selected for subsequent integration as of 2026-10-21. Kernel/accessory/AIC linking, boot-chain packing, compiled-DT checks and three diagnostic Linux 6.12.114 boots support that choice. The 2026-10-22 boot-only experiment reached userspace with the selected DT; a later isolated radio boot confirmed firmware readiness and successful HCI Reset. Firmware redistribution terms stayed unresolved until #11. On 2026-10-23 the owner closed [task #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) after tracker review, with the unresolved firmware terms recorded below and their resolution handed to [task #11](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/11). On 2026-10-24, #11 settled them by moving to the redistributable linux-firmware release; promoting this ADR to Accepted awaits the owner's decision. On 2026-10-24, #12 made the Buildroot image start the radio, the 5 GHz access point and Bluetooth pairing on the board; see [Radio startup and pairing](#radio-startup-and-pairing-2026-10-24). Car operation and the spec's repeated-start acceptance remain for later tasks.
 
 ## Date
 
-2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22; mainline Bluetooth attachment result and task #5 closure review added 2026-10-23; shipping kernel/boot-component defconfig build and first microSD image boots added 2026-10-23; AIC driver package in the shipping defconfig, USB accessory negotiation on the board and the redistributable linux-firmware baseline added 2026-10-24.
+2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22; mainline Bluetooth attachment result and task #5 closure review added 2026-10-23; shipping kernel/boot-component defconfig build and first microSD image boots added 2026-10-23; AIC driver package in the shipping defconfig, USB accessory negotiation on the board, the redistributable linux-firmware baseline and radio startup with pairing added 2026-10-24.
 
 ## Context
 
@@ -36,8 +36,8 @@ Existing Pi source pins and the Buildroot submodule remain unchanged.
 | DDR / BL31 | rkbin commit `f43a462e7a1429a9d407ae52b4745033034a6cf9`; `bin/rk35/rk3566_ddr_1056MHz_v1.23.bin` and `bin/rk35/rk3568_bl31_v1.44.elf` | Exact blobs verified inside the packed bootloader; retain rkbin notices; OP-TEE not selected |
 | Kernel | Linux 6.12.114, commit `85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e`, release archive `linux-6.12.114.tar.xz` | Full Image/modules link; three physical boot-only snapshots reach diagnostic userspace; external modules not loaded by that experiment |
 | Linux device tree | The same Linux input plus the board patches below; `rockchip/rk3566-radxa-zero-3w-aic8800d80.dtb` | Six compiled-property tests pass; five candidate property groups also pass against the radio boot's live DT; generic DT unchanged; schema and electrical timing remain unverified |
-| Radio driver | Radxa AIC tag `4.0+git20241119.06da8476-1`, commit `fc7cbdd1791416c2457fa27a59e508bf325c9c3f`; `src/SDIO/driver_fw/driver/aic8800` plus the patch series below | All three modules link; selected BSP/fdrv path without btlpm reached firmware readiness and successful HCI Reset in one diagnostic boot; since #10 the `aic8800` package builds BSP/fdrv into the shipping image; AP/pairing/stability remain untested |
-| Radio firmware/configuration | Since #11: the four AIC8800D80 U02 v6.9.1.1 files from linux-firmware `20261019` under `LICENSE.aic`, plus `aic_userconfig_8800d80.txt` from the AIC commit above; see [Redistributable firmware baseline](#redistributable-firmware-baseline-2026-10-24). The six reference files under [Firmware observed loading](#firmware-observed-loading) are no longer shipped | One smoke-test boot of the Buildroot image: BT and Wi-Fi firmware uploads succeed and `wlan0` appears with AP mode; HCI reset/attach, AP and pairing remain #12 |
+| Radio driver | Radxa AIC tag `4.0+git20241119.06da8476-1`, commit `fc7cbdd1791416c2457fa27a59e508bf325c9c3f`; `src/SDIO/driver_fw/driver/aic8800` plus the patch series below | All three modules link; selected BSP/fdrv path without btlpm reached firmware readiness and successful HCI Reset in one diagnostic boot; since #10 the `aic8800` package builds BSP/fdrv into the shipping image; since #12 `S38radio` loads them at boot; AP, pairing and power-removal reconnection pass on the board; long-run stability is untested |
+| Radio firmware/configuration | Since #11: the four AIC8800D80 U02 v6.9.1.1 files from linux-firmware `20261019` under `LICENSE.aic`, plus `aic_userconfig_8800d80.txt` from the AIC commit above; see [Redistributable firmware baseline](#redistributable-firmware-baseline-2026-10-24). The six reference files under [Firmware observed loading](#firmware-observed-loading) are no longer shipped | One smoke-test boot of the Buildroot image: BT and Wi-Fi firmware uploads succeed and `wlan0` appears with AP mode; #12 boots also attach Bluetooth and run the AP |
 
 Use the source/archive hashes in [ARM64 compilation](#arm64-compilation-slice)
 and [Boot-chain build and packing](#boot-chain-build-and-packing), together with
@@ -67,8 +67,10 @@ Paths below are relative to `aa_wireless_dongle/`; apply each list in order.
    same directory. These provide the required accessory function and uevents.
 2. Linux: `board/radxa/zero3w/patches/linux/0003-Pass-HID-buffer-size-for-Linux-6.12.114.patch`,
    then `0004-Add-V1.12M-AIC8800D80-device-tree.patch`, then
-   `0005-Set-AIC-Bluetooth-GPIO-defaults.patch` in that directory. These supply
-   the 6.12.114 HID API correction and the board-specific DT/pin defaults.
+   `0005-Set-AIC-Bluetooth-GPIO-defaults.patch`, then
+   `0006-Call-getsockopt_iter-if-available.patch` in that directory. These supply
+   the 6.12.114 HID API correction, the board-specific DT/pin defaults and the
+   missing socket-core half of the 6.12.114 L2CAP `getsockopt_iter` backport.
 3. AIC: apply the SDIO portions of the pinned archive's `debian/patches/series`
    in listed order, then
    `board/radxa/zero3w/patches/aic8800/0001-Handle-monitor-callback-in-Linux-6.12.114.patch`
@@ -82,9 +84,9 @@ Runtime integration must preserve normal BSP work mode, `CONFIG_MCU_MESSAGE=n`,
 Load BSP/fdrv synchronously, require the `aic-firmware-ready.sh` predicate,
 require successful bounded `aic-hci-reset /dev/ttyS1`, attach at
 1.5 Mbaud/RTS-CTS, then start BlueZ after attachment is established. Stop on
-failure; a fixed sleep is not the readiness contract. The helpers are in
-`board/radxa/zero3w/checks/` at the repository commit above and are not yet
-installed by a runtime package. Do not install the factory TCP test server or
+failure; a fixed sleep is not the readiness contract. Since #12 the
+`aic8800-startup` package installs the helpers and the `S38radio` init script
+that implements this contract. Do not install the factory TCP test server or
 automatically load `aic8800_btlpm`. Userspace package integration belongs to
 later tasks; Debian's installed BlueZ/rsetup versions are diagnostic references.
 
@@ -101,10 +103,10 @@ source/patch compatibility assessment and an explicit update to this decision.
 
 | Required capability | Evidence supporting the choice | Physical verification still required |
 | --- | --- | --- |
-| MicroSD boot | Reference boots; selected diagnostic card reaches Linux 6.12.114 userspace; the #8 Buildroot image boots headlessly twice and persists `persist` writes across power removal | Boot log capture; rootfs read-only behaviour on the board |
-| Android accessory and uevents | Shared patches/HID correction link; the #9 image enumerates on a PC acting as headunit, completes the AOA handshake, delivers `ACCESSORY=START` to `aawgd` and re-enumerates as `18d1:2d00`, on two boots including a power cycle | Bidirectional accessory data transport (#12); a real headunit (#13) |
-| Wi-Fi AP | Pinned driver exposes AP operations; the reference advertises AP/AP-VLAN and operates as a Wi-Fi client | Selected driver/firmware on mainline, hostapd operation, channels and coexistence (#10–#12) |
-| Bluetooth | Exact firmware match and ordered startup pass on Radxa OS; mainline GPIO hog directions/UART1 observed; both AIC SDIO IDs appear in one boot snapshot | Matching mainline modules/firmware, HCI reset/attachment, pairing and AP coexistence (#10–#12) |
+| MicroSD boot | Reference boots; selected diagnostic card reaches Linux 6.12.114 userspace; the #8 Buildroot image boots headlessly twice and persists `persist` writes across power removal | Both captured in #12: the boot log over SSH, and a read-only rootfs mount |
+| Android accessory and uevents | Shared patches/HID correction link; the #9 image enumerates on a PC acting as headunit, completes the AOA handshake, delivers `ACCESSORY=START` to `aawgd` and re-enumerates as `18d1:2d00`, on two boots including a power cycle | Bidirectional transport passed in #12 (version request and response through `aawgd`); a real headunit (#13) |
+| Wi-Fi AP | Pinned driver exposes AP operations; the reference advertises AP/AP-VLAN and operates as a Wi-Fi client | Passed in #12: hostapd on 5 GHz channel 36 with country `SE`, alongside Bluetooth. Sustained traffic and other channels remain |
+| Bluetooth | Exact firmware match and ordered startup pass on Radxa OS; mainline GPIO hog directions/UART1 observed; both AIC SDIO IDs appear in one boot snapshot | Passed in #12: HCI reset, attachment, noninteractive pairing and reconnection after power removal. Repeated cold starts remain |
 
 The GPIO defaults now have mainline ownership/direction snapshots, without
 radio firmware or drivers. Electrical timing, wake IRQ/suspend support and
@@ -173,7 +175,7 @@ A follow-up found the maintainer's [licensing clarification in upstream issue #5
 - Physical microSD boot and SSH succeeded on V1.12M. `/`, `/config` and `/boot/efi` are mounted from microSD in **Radxa OS**; the future Buildroot partition layout is not tested by this result.
 - `wlan0` connected on 5 GHz, channel 100, 80 MHz width. `iw list` advertises AP and AP/VLAN modes. A hostapd AP, regulatory/channel behavior and Bluetooth coexistence have not been tested.
 - `bluetoothctl show` reports a powered controller. Pairing, the dongle Bluetooth profiles and reconnection have not been tested.
-- On the selected **Linux 6.12.114** baseline, a private diagnostic initramfs (2026-10-23, two boots) passed radio setup, bounded HCI Reset and live hci0 attachment, then failed BlueZ 5.79 adapter registration: `getsockopt(L2CAP_OPTIONS)` returned `EOPNOTSUPP` with `CONFIG_BT_LE=n`. No adapter or pairing window was reached. Explicit `ControllerMode=bredr` is an untested hypothesis for [task #12](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/12); see the [mainline Bluetooth diagnostic](../../aa_wireless_dongle/board/radxa/zero3w/checks/bluetooth-test.md).
+- On the selected **Linux 6.12.114** baseline, a private diagnostic initramfs (2026-10-23, two boots) passed radio setup, bounded HCI Reset and live hci0 attachment, then failed BlueZ 5.79 adapter registration: `getsockopt(L2CAP_OPTIONS)` returned `EOPNOTSUPP`. No adapter or pairing window was reached. The kernel then had `CONFIG_BT_LE=n`, which this record first took as the cause; [task #12](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/12) found the real cause in the 6.12.114 socket core and fixed it (see [Radio startup and pairing](#radio-startup-and-pairing-2026-10-24)); see the [mainline Bluetooth diagnostic](../../aa_wireless_dongle/board/radxa/zero3w/checks/bluetooth-test.md).
 - `/sys/class/udc/fcc00000.usb` exists. Accessory gadget binding, enumeration, accessory-start uevents and Android Auto have not been tested.
 - The owner powered the board from a USB outlet for this diagnostic session. The exact supply/port/cable and car USB acceptance were not recorded or measured.
 
@@ -708,8 +710,8 @@ the recovery point; recovery state belongs in the dated
 
 Task [#7](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/7) adds `aa_wireless_dongle/configs/radxa-zero3w_defconfig`. It builds the selected kernel, the V1.12M AIC DT and the U-Boot/DDR/BL31 boot chain with the Bootlin AArch64 glibc stable toolchain and mandatory download hashes. It imports no Pi firmware, boot configuration, overlay, script or patch directory. Task #8 extends it with the microSD image and userspace below. It does not package the AIC driver or firmware (#10, #11).
 
-- **Kernel configuration:** upstream ARM64 `defconfig`, then `board/common/kernel.config`, then `board/radxa/zero3w/linux.fragment`. The fragment enables `BT_LE` and `BT_RFCOMM` explicitly, together with `BT`, `BT_HCIUART` and `BT_HCIUART_H4`; the mainline Bluetooth result above traced the adapter-registration failure to their absence. `BT_BNEP` stays disabled. The ARM64 defconfig builds `certs/extract-cert`, so the target selects host OpenSSL.
-- **Patches and hashes:** the global patch directories are the shared `patches` followed by `board/radxa/zero3w/patches`, so Linux applies 0001–0005 in the order required above. `board/radxa/zero3w/patches/linux/linux.hash` pins `linux-6.12.114.tar.xz` to the kernel.org hash in [ARM64 compilation](#arm64-compilation-slice). Buildroot merges hash files across patch directories; the Pi `linux.hash` has no entry for this archive, and Pi targets never read the Radxa file. Buildroot's own `uboot.hash` and `rockchip-rkbin.hash` verify the U-Boot and rkbin archives, so no U-Boot hash file or configuration fragment is added; plain `radxa-zero-3-rk3566_defconfig` is the configuration that booted the board.
+- **Kernel configuration:** upstream ARM64 `defconfig`, then `board/common/kernel.config`, then `board/radxa/zero3w/linux.fragment`. The fragment enables `BT_LE` and `BT_RFCOMM` explicitly, together with `BT`, `BT_HCIUART` and `BT_HCIUART_H4`. These are needed, but their absence did not cause the adapter-registration failure; #12 traced that to the kernel's socket core. `BT_BNEP` stays disabled. The ARM64 defconfig builds `certs/extract-cert`, so the target selects host OpenSSL.
+- **Patches and hashes:** the global patch directories are the shared `patches` followed by `board/radxa/zero3w/patches`, so Linux applies 0001–0006 in the order required above. `board/radxa/zero3w/patches/linux/linux.hash` pins `linux-6.12.114.tar.xz` to the kernel.org hash in [ARM64 compilation](#arm64-compilation-slice). Buildroot merges hash files across patch directories; the Pi `linux.hash` has no entry for this archive, and Pi targets never read the Radxa file. Buildroot's own `uboot.hash` and `rockchip-rkbin.hash` verify the U-Boot and rkbin archives, so no U-Boot hash file or configuration fragment is added; plain `radxa-zero-3-rk3566_defconfig` is the configuration that booted the board.
 - **Compiler:** this is the first build of the patched kernel with GCC (Bootlin `14.3.0`, binutils `2.43.1`); the earlier link evidence used LLVM. It completed without source changes.
 
 `make linux uboot` in the `aawg-buildroot` Docker environment produced:
@@ -794,12 +796,45 @@ The external package `aic8800-firmware` downloads the four files and `LICENSE.ai
 
 Details and log hashes are in the [firmware handoff](../handoffs/2026-10-24-radxa-wireless-firmware.md).
 
+### Radio startup and pairing: 2026-10-24
+
+Task [#12](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/12) ([approved spec](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/12#issuecomment-6383646977)) makes the shipping image start the radio by itself. The external package `aic8800-startup` now holds `aic-firmware-ready.sh` and `aic-hci-reset.c`, moved from `checks/`. It cross-compiles the reset helper, installs both in `/usr/sbin`, and installs the init script `S38radio`. That script runs before `S39hostapd_conf`, `S40bluetoothd` and `S40network`, and follows the startup contract above:
+
+1. Wait, bounded, for SDIO function `c8a1:0082`.
+2. `modprobe aic8800_fdrv custregd=0`, which loads `aic8800_bsp` first.
+3. Poll `aic-firmware-ready.sh wlan0`, bounded.
+4. `modprobe hci_uart`, then `aic-hci-reset /dev/ttyS1`.
+5. `btattach -B /dev/ttyS1 -P h4 -S 1500000` (RTS/CTS is btattach's default), then a bounded wait for `hci0`.
+
+Every stage stops on failure and logs what is missing. A Bluetooth failure leaves Wi-Fi up; nothing is attached after a failed reset. `btattach` replaces `hciattach`, which needs Buildroot's deprecated BlueZ tools. `tests/radxa_radio_startup_test.py` runs the real script against fixtures, also under the target's BusyBox ash in qemu, and checks the installed files.
+
+**Regulatory.** The driver defaults to `custregd=1`, which makes the wiphy self-managed with its own permissive "00" domain, so cfg80211 ignores hostapd's `country_code`. Loading it with `custregd=0` keeps the driver's `reg_notifier`, so the kernel's `regulatory.db` and `AAWG_COUNTRY_CODE` apply. On the board, `iw reg get` reports `country SE: DFS-ETSI` and the "permissive custom regulatory rules" warning is gone.
+
+**Access point.** The board overlay's `hostapd.conf.in` matches Pi 4/5: 802.11a/n/ac on channel 36. `AAWG_WIFI_CHANNEL` still overrides the channel. The AP ran at 20 MHz and 18 dBm.
+
+**Bluetooth adapter registration.** The first board boot passed every `S38radio` stage but BlueZ 5.79 still failed with `getsockopt(L2CAP_OPTIONS)`: `EOPNOTSUPP`, as in the 2026-10-23 diagnostic, now with `BT_LE=y`. The cause is in the pinned kernel. 6.12.114 backported upstream `67fab22a7adc` ("net: add getsockopt_iter callback to proto_ops") and `bf01627cc04b` ("Bluetooth: L2CAP: convert to getsockopt_iter") as dependencies of an L2CAP fix, but not `5bd0dec150f5` ("net: call getsockopt_iter if available"). L2CAP sockets therefore have no `getsockopt`, and `do_sock_getsockopt()` returns `EOPNOTSUPP` for every non-`SOL_SOCKET` option. 6.12.114 is the newest 6.12 release (21 Oct 2026). Board patch `0006` carries `5bd0dec150f5` unchanged apart from line offsets; `tests/radxa_platform_build_test.py` checks that the built kernel dispatches to the callback.
+
+**`bus down`.** Both `aicwf_sdio_bus_pwrctl()` copies (BSP `aicsdio.c` and fdrv `aicwf_sdio.c`) print it and return without action when the power-control timer fires while the bus state is still `BUS_DOWN_ST`. It appears once, during initialisation, and needs no change.
+
+**Board run.** The production image with kernel patch 0006 (SHA-256 `b9ad97c042969a6bc5b5442cce155f7debdb4a380349734f4b2ccc777ad9b7ed`) was written as a test card with `checks/radio-startup-test.conf` and a private AP password appended to its `aawgd.conf` (`9e30246595af0c82dda4f3cdb12bb2fdf51ab9e9e117d80ea09928e53a1c5ea5`, differing only in the FAT partition). Powered from the PC, which acted as headunit with `checks/aoa-host-test.py --version-exchange`:
+
+| Step | Result |
+| --- | --- |
+| Radio startup | `S38radio` finished within 4 s of boot: firmware ready, HCI Reset complete, `wlan0` and `hci0` up |
+| Pairing | The phone found and paired with the dongle with no prompt on the dongle side; `aawgd` ran the Bluetooth launch sequence and sent the Wi-Fi credentials |
+| Wi-Fi | The phone joined the AP and opened TCP to `aawgd` |
+| Accessory transport | AOA switch, then the PC's 10-byte version request reached the phone and its 12-byte version response (1.7, status 0) came back; `aawgd` proxy stats show both directions |
+| Power removal | After pulling power, the phone reconnected from the stored pairing without a prompt and the exchange passed again; four boots of this card in all |
+
+The board mounts rootfs read-only, `/boot` read-only and `/persist` read-write. Two kernel messages need no action here: `dw-apb-uart … failed to request DMA` (the UART falls back to PIO and HCI traffic works) and the deferred `fd000000.usb` probe recorded in #9. Without a real headunit the phone ends each session about 10 s after the version exchange, and `aawgd` reconnects by itself. Details, log hashes and limits are in the [radio startup handoff](../handoffs/2026-10-24-radxa-radio-startup.md).
+
 ## Consequences and next evidence
 
-- Use the selected engineering baseline and patch order above for subsequent integration. Task #5 is closed with firmware terms recorded as unresolved; task #11 owns their resolution and task #12 owns mainline BlueZ adapter registration and pairing. Dependent tasks retain their prerequisites.
+- Use the selected engineering baseline and patch order above for subsequent integration. Task #5 is closed with firmware terms recorded as unresolved; task #11 resolved them and task #12 delivered mainline BlueZ adapter registration and pairing. Dependent tasks retain their prerequisites.
 - PCB/radio identification, source/link compatibility, packing, compiled-DT checks and the three boot-only mainline snapshots support the engineering choice. Radio operation and a complete Buildroot runtime remain unverified.
 - Firmware redistribution is settled by the linux-firmware baseline from #11 (`LICENSE.aic`); the six Radxa-packaged reference files are not shipped. Promoting this ADR to Accepted is now the owner's decision.
-- The complete Buildroot microSD layout/runtime, AP/Bluetooth coexistence, USB enumeration/negotiation, power and connection reliability remain physical acceptance checks in subsequent tasks.
+- One Buildroot image now boots to AP, pairing and accessory transport on the board (#12). Car power, a real headunit, repeated cold starts and connection reliability remain physical acceptance checks in subsequent tasks.
+- Drop board patch `0006` once the pinned kernel contains upstream `5bd0dec150f5`.
 - Do not publish a supported image or close hardware criteria based on this source investigation.
 
 ## Verification performed
