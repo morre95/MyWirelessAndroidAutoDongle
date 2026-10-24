@@ -2,11 +2,11 @@
 
 ## Status
 
-Proposed for release; the engineering source baseline below is selected for subsequent integration as of 2026-10-21. Kernel/accessory/AIC linking, boot-chain packing, compiled-DT checks and three diagnostic Linux 6.12.114 boots support that choice. The 2026-10-22 boot-only experiment reached userspace with the selected DT; a later isolated radio boot confirmed firmware readiness and successful HCI Reset. Firmware redistribution terms remain unresolved. On 2026-10-23 the owner closed [task #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) after tracker review, with the unresolved firmware terms recorded below and their resolution handed to [task #11](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/11). This ADR stays Proposed for release until #11 settles those terms; downstream dependencies are unchanged. This record does not establish a working Buildroot dongle image.
+Proposed for release; the engineering source baseline below is selected for subsequent integration as of 2026-10-21. Kernel/accessory/AIC linking, boot-chain packing, compiled-DT checks and three diagnostic Linux 6.12.114 boots support that choice. The 2026-10-22 boot-only experiment reached userspace with the selected DT; a later isolated radio boot confirmed firmware readiness and successful HCI Reset. Firmware redistribution terms stayed unresolved until #11. On 2026-10-23 the owner closed [task #5](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/5) after tracker review, with the unresolved firmware terms recorded below and their resolution handed to [task #11](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/11). On 2026-10-24, #11 settled them by moving to the redistributable linux-firmware release; promoting this ADR to Accepted awaits the owner's decision. Downstream dependencies are unchanged. This record does not establish a working Buildroot dongle image.
 
 ## Date
 
-2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22; mainline Bluetooth attachment result and task #5 closure review added 2026-10-23; shipping kernel/boot-component defconfig build and first microSD image boots added 2026-10-23; AIC driver package in the shipping defconfig and USB accessory negotiation on the board added 2026-10-24.
+2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22; mainline Bluetooth attachment result and task #5 closure review added 2026-10-23; shipping kernel/boot-component defconfig build and first microSD image boots added 2026-10-23; AIC driver package in the shipping defconfig, USB accessory negotiation on the board and the redistributable linux-firmware baseline added 2026-10-24.
 
 ## Context
 
@@ -37,7 +37,7 @@ Existing Pi source pins and the Buildroot submodule remain unchanged.
 | Kernel | Linux 6.12.114, commit `85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e`, release archive `linux-6.12.114.tar.xz` | Full Image/modules link; three physical boot-only snapshots reach diagnostic userspace; external modules not loaded by that experiment |
 | Linux device tree | The same Linux input plus the board patches below; `rockchip/rk3566-radxa-zero-3w-aic8800d80.dtb` | Six compiled-property tests pass; five candidate property groups also pass against the radio boot's live DT; generic DT unchanged; schema and electrical timing remain unverified |
 | Radio driver | Radxa AIC tag `4.0+git20241119.06da8476-1`, commit `fc7cbdd1791416c2457fa27a59e508bf325c9c3f`; `src/SDIO/driver_fw/driver/aic8800` plus the patch series below | All three modules link; selected BSP/fdrv path without btlpm reached firmware readiness and successful HCI Reset in one diagnostic boot; since #10 the `aic8800` package builds BSP/fdrv into the shipping image; AP/pairing/stability remain untested |
-| Radio firmware/configuration | Only the six D80 files listed under [Firmware observed loading](#firmware-observed-loading), from that same AIC commit | All six SHA-256 values match the working reference card; selection remains subject to clarification of redistribution/source obligations |
+| Radio firmware/configuration | Since #11: the four AIC8800D80 U02 v6.9.1.1 files from linux-firmware `20261019` under `LICENSE.aic`, plus `aic_userconfig_8800d80.txt` from the AIC commit above; see [Redistributable firmware baseline](#redistributable-firmware-baseline-2026-10-24). The six reference files under [Firmware observed loading](#firmware-observed-loading) are no longer shipped | One smoke-test boot of the Buildroot image: BT and Wi-Fi firmware uploads succeed and `wlan0` appears with AP mode; HCI reset/attach, AP and pairing remain #12 |
 
 Use the source/archive hashes in [ARM64 compilation](#arm64-compilation-slice)
 and [Boot-chain build and packing](#boot-chain-build-and-packing), together with
@@ -768,11 +768,37 @@ Two kernel messages need no action for this port. `dwc3 fcc00000.usb: request â€
 
 Bidirectional data transport waits for Wi-Fi in #12, and a real headunit is #13 (owner decision). Details, log hashes and the helpers are in the [USB accessory handoff](../handoffs/2026-10-24-radxa-usb-accessory.md).
 
+### Redistributable firmware baseline: 2026-10-24
+
+On 2026-10-10, AIC engineers added AIC8800D80 U02 firmware to linux-firmware ([commit `8d279b94`](https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/commit/?id=8d279b943f1f55a9be0dfbe8df7329e4a233791f)) under `LICENSES/LICENSE.aic`. That license lets anyone copy and redistribute the unchanged firmware, including in installation media and images, for use on its intended hardware, and requires redistributed copies to keep the notice. Task [#11](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/11) replaces the six Radxa-packaged reference files with this release, explicitly changing the firmware baseline above. [radxa-pkg/aic8800#109](https://github.com/radxa-pkg/aic8800/issues/109) no longer blocks release.
+
+| File the BSP/fdrv load | Shipped source | SHA-256 |
+| --- | --- | --- |
+| `fw_adid_8800d80_u02.bin` | linux-firmware `20261019` (identical to the reference file) | `a526cbd02fcdc495f049f3ad6b5933cb08cd984b16790c716a060d582fee1a56` |
+| `fw_patch_8800d80_u02.bin` | linux-firmware `20261019`, v6.9.1.1 | `be3d13e5cf1adb18a57dc829da34f6bf9450ace5c92b8d9baa39f55ba310318f` |
+| `fw_patch_table_8800d80_u02.bin` | linux-firmware `20261019`, v6.9.1.1 | `6fb9284b3d1d6ba88e1495adce7c2da02c0cc8cd0df83a6ca23c2f8a5f0d8a45` |
+| `fmacfw_8800d80_u02.bin` | linux-firmware `20261019`, v6.9.1.1 | `ea91583a4b0004d8e8e7fb304b49a85df9468ddca42fb52841e37c7bb825de42` |
+| `LICENSE.aic` | linux-firmware `20261019` | `32abfdc0476b2ddb9942d01b0fbe798a581d4618c88931d50d8e0e8ab142f513` |
+| `aic_userconfig_8800d80.txt` | AIC commit `fc7cbdd` (plain-text transmit-power table, no corresponding-source issue) | `56c039d10af63c888b18890f508968a143f034de279fd2c4ec7ee65133e3dbdb` |
+
+`fw_patch_8800d80_u02_ext0.bin` is not needed. `aicbt_patch_info_unpack()` reads an ext-patch count only when the patch table's info entry has more than its 4-pair base. The reference table has 6 pairs and declares one ext patch (id 0 at `0x20b43c`); the v6.9.1.1 table has exactly 4. Without `aic_userconfig_8800d80.txt`, the driver would continue with compiled-in transmit power about 2 dB above the file's values, so the file is installed.
+
+The external package `aic8800-firmware` downloads the four files and `LICENSE.aic` from the linux-firmware GitLab project at tag `20261019`, which resolves to the same commit as on git.kernel.org. Every file is hash-checked. The package installs them at the driver's compiled path, `/lib/firmware/aic8800_fw/SDIO/aic8800D80/`, with `LICENSE.aic` beside them, and declares `LicenseRef-LICENSE.aic` in `legal-info`. The `aic8800` package installs the userconfig from its own source. Buildroot's own `linux-firmware` package is `20251011`, which predates the AIC files, and the Buildroot submodule stays pinned. `tests/radxa_wireless_firmware_test.py` checks the installed set, hashes, the patch table and the `legal-info` entry.
+
+**Smoke test on the board, one boot:** the production image (SHA-256 `cd5cd1eb3ee97cd34236ce4915933a656ffeb46f449dbf81b47342b23ea96d55`) was flashed as a test card after one change: `checks/aic-firmware-smoke-test.conf` was appended to its `aawgd.conf`. 60 s after boot, the block loaded `aic8800_bsp`, then `aic8800_fdrv`, and logged to `persist`. Loading waits for `rcS` to finish, so no access point started.
+
+- Both `modprobe` calls returned 0 within 2.2 s.
+- The BSP parsed the v6.9.1.1 patch table without an ext patch, uploaded the ADID and patch (BT patch "Sep 23 2024 â€¦ git fe00fa3"), then `fmacfw`. The fdrv loaded the userconfig and reported firmware `V1.0.7`.
+- `wlan0` appeared at 18.00 dBm, the userconfig's level. `iw list` shows AP, AP/VLAN and P2P-GO modes on both bands.
+- One `aicwf_sdio_bus_pwrctl` "bus down" message appears during initialisation, as on the Radxa OS reference, and the driver applies permissive custom regulatory rules with country code `00`. Both remain #12 follow-ups, as recorded above. HCI reset, UART attach, AP operation and pairing are #12.
+
+Details and log hashes are in the [firmware handoff](../handoffs/2026-10-24-radxa-wireless-firmware.md).
+
 ## Consequences and next evidence
 
 - Use the selected engineering baseline and patch order above for subsequent integration. Task #5 is closed with firmware terms recorded as unresolved; task #11 owns their resolution and task #12 owns mainline BlueZ adapter registration and pairing. Dependent tasks retain their prerequisites.
 - PCB/radio identification, source/link compatibility, packing, compiled-DT checks and the three boot-only mainline snapshots support the engineering choice. Radio operation and a complete Buildroot runtime remain unverified.
-- Resolve the six firmware files' redistribution/source obligations before promoting this ADR to Accepted. Change the selected firmware/source baseline explicitly if the answer requires it.
+- Firmware redistribution is settled by the linux-firmware baseline from #11 (`LICENSE.aic`); the six Radxa-packaged reference files are not shipped. Promoting this ADR to Accepted is now the owner's decision.
 - The complete Buildroot microSD layout/runtime, AP/Bluetooth coexistence, USB enumeration/negotiation, power and connection reliability remain physical acceptance checks in subsequent tasks.
 - Do not publish a supported image or close hardware criteria based on this source investigation.
 

@@ -1,0 +1,9 @@
+config BR2_PACKAGE_AIC8800_FIRMWARE
+	bool "aic8800-firmware"
+	help
+	  AIC8800D80 U02 Bluetooth and SDIO Wi-Fi firmware from
+	  linux-firmware, installed where the aic8800 driver loads it.
+	  The driver's transmit-power configuration is installed by the
+	  aic8800 package.
+
+	  https://gitlab.com/kernel-firmware/linux-firmware
