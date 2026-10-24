@@ -154,6 +154,11 @@ class InstalledStartup(unittest.TestCase):
         for later in ("S39hostapd_conf", "S40bluetoothd", "S40network"):
             self.assertLess(scripts.index("S38radio"), scripts.index(later), later)
 
+    def test_access_point_uses_5ghz_channel_36(self):
+        lines = (TARGET / "etc/hostapd.conf.in").read_text().splitlines()
+        for line in ("hw_mode=a", "ieee80211ac=1", "channel=36"):
+            self.assertIn(line, lines)
+
 
 if __name__ == "__main__":
     unittest.main()
