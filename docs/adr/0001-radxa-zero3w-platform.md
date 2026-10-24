@@ -6,7 +6,7 @@ Proposed for release; the engineering source baseline below is selected for subs
 
 ## Date
 
-2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22; mainline Bluetooth attachment result and task #5 closure review added 2026-10-23; shipping kernel/boot-component defconfig build and first microSD image boots added 2026-10-23; AIC driver package in the shipping defconfig added 2026-10-24.
+2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22; mainline Bluetooth attachment result and task #5 closure review added 2026-10-23; shipping kernel/boot-component defconfig build and first microSD image boots added 2026-10-23; AIC driver package in the shipping defconfig and USB accessory negotiation on the board added 2026-10-24.
 
 ## Context
 
@@ -102,7 +102,7 @@ source/patch compatibility assessment and an explicit update to this decision.
 | Required capability | Evidence supporting the choice | Physical verification still required |
 | --- | --- | --- |
 | MicroSD boot | Reference boots; selected diagnostic card reaches Linux 6.12.114 userspace; the #8 Buildroot image boots headlessly twice and persists `persist` writes across power removal | Boot log capture; rootfs read-only behaviour on the board |
-| Android accessory and uevents | Shared patches/HID correction link; source contains required uevents; mainline `fcc00000.usb` UDC is visible | Gadget binding, enumeration, negotiation and actual uevent delivery (#9) |
+| Android accessory and uevents | Shared patches/HID correction link; the #9 image enumerates on a PC acting as headunit, completes the AOA handshake, delivers `ACCESSORY=START` to `aawgd` and re-enumerates as `18d1:2d00`, on two boots including a power cycle | Bidirectional accessory data transport (#12); a real headunit (#13) |
 | Wi-Fi AP | Pinned driver exposes AP operations; the reference advertises AP/AP-VLAN and operates as a Wi-Fi client | Selected driver/firmware on mainline, hostapd operation, channels and coexistence (#10–#12) |
 | Bluetooth | Exact firmware match and ordered startup pass on Radxa OS; mainline GPIO hog directions/UART1 observed; both AIC SDIO IDs appear in one boot snapshot | Matching mainline modules/firmware, HCI reset/attachment, pairing and AP coexistence (#10–#12) |
 
@@ -747,6 +747,26 @@ The package declares `GPL-2.0` following Radxa's clarification in [radxa-pkg/aic
 | `aic8800_fdrv/aic8800_fdrv.ko` | 729,560 | `3da8ff92bad4c0b008b43a77a1d8fa485353d4fdf089ea9baabe5dbe06451fa9` |
 
 Both modules have vermagic `6.12.114 SMP preempt mod_unload aarch64`. `aic8800_fdrv` (version `6.4.3.0`) depends on `cfg80211,aic8800_bsp` and declares the D80 Wi-Fi alias `sdio:c*vC8A1d0082*`. `aic8800_bsp` matches by SDIO WLAN class (`sdio:c07v*d*`), not by the `c8a1:0182` ID it binds on the board. The image uses static devtmpfs without hotplug, so these aliases do not autoload the modules; loading belongs to the startup task (#12). `tests/radxa_wireless_driver_test.py` checks the selection, patch order, audited options, installed modules, dependencies, aliases, absent firmware and kernel prerequisites. These hashes identify one local build. Nothing from this build has been booted.
+
+### USB accessory negotiation on the board: 2026-10-24
+
+Task [#9](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/9) needed no accessory patch port. The shared patches and the HID correction already build on 6.12.114. The gap was module loading: the image has no hotplug module loader, and `linux.fragment` built `USB_LIBCOMPOSITE` and `USB_CONFIGFS` as modules that nothing loaded. Both are now built in, so `usb_f_accessory` and `usb_f_fs` are too. DWC3 and the INNO USB2 PHY were already built in. The common `S92usb_gadget`, `umtprd` and `aawgd` run unchanged; `UsbManager` takes the only UDC, `fcc00000.usb`. `tests/radxa_platform_build_test.py` checks the built-in gadget stack.
+
+The production image (SHA-256 `257f3549ff9af68f532c2d4306fb3dfad8a4d2217895ab5bcaa576ff56aea4ed`) was flashed as a test card after one change: `board/radxa/zero3w/checks/usb-accessory-test.conf` was appended to its `aawgd.conf`. That block selects USB-first mode and logs uevents, `dmesg`, syslog and the UDC/gadget state to `persist`. The test card's SHA-256 is `7e31e20fe63ee0734dc44c5592ef5683be92d58278fa6c689938b589b72ed845`, and it differs only inside the FAT partition. The OTG port is also the board's power input. This PC acted as the headunit with `checks/aoa-host-test.py`, and the board was powered from it.
+
+Both boots, the second after power removal, gave the same result:
+
+| Step | PC (host tool) | Board (persist logs) |
+| --- | --- | --- |
+| Default gadget | `18d1:4ee1` at 480 Mbit/s, 34 s and 52 s after the tool started | `aawgd` finds UDC `fcc00000.usb`, binds `configfs-gadget.default`; `USB_STATE=CONFIGURED` |
+| AOA handshake | Protocol version 2; six strings and START accepted | `ACCESSORY=GETPROTOCOL`, six `SENDSTRING`, `START` uevents |
+| Switch | `18d1:2d00` enumerates 0.8 s after START | `aawgd`: "Received accessory start request", then "Switched to accessory gadget from default"; default unbinds, `configfs-gadget.accessory` binds, `USB_STATE=CONFIGURED` |
+| Host reset | Accessory configured again on the same address | A second `USB_STATE=CONFIGURED` |
+| End state | — | UDC `configured`, `high-speed`; accessory gadget bound |
+
+Two kernel messages need no action for this port. `dwc3 fcc00000.usb: request … was not queued to ep0out` appears once at the default→accessory unbind, and the accessory configures normally afterwards. `fd000000.usb` (the separate USB 3 host-only port) stays in deferred probe: its `PHY_ROCKCHIP_NANENG_COMBO_PHY` driver is a module that the image never loads. The dongle does not use that port.
+
+Bidirectional data transport waits for Wi-Fi in #12, and a real headunit is #13 (owner decision). Details, log hashes and the helpers are in the [USB accessory handoff](../handoffs/2026-10-24-radxa-usb-accessory.md).
 
 ## Consequences and next evidence
 
