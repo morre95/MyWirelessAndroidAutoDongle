@@ -57,6 +57,14 @@ class KernelTests(unittest.TestCase):
         self.assertOption("CONFIG_USB_CONFIGFS_F_ACC=y")
         self.assertOption("CONFIG_USB_CONFIGFS_UEVENT=y")
 
+    def test_gadget_stack_is_built_in_without_a_module_loader(self):
+        # The image has no hotplug module loading, so S92usb_gadget needs
+        # configfs gadgets, the accessory and FunctionFS present at boot.
+        for line in ("CONFIG_USB_DWC3=y", "CONFIG_USB_DWC3_DUAL_ROLE=y", "CONFIG_USB_GADGET=y",
+                     "CONFIG_USB_LIBCOMPOSITE=y", "CONFIG_USB_CONFIGFS=y", "CONFIG_USB_F_ACC=y",
+                     "CONFIG_USB_F_FS=y", "CONFIG_PHY_ROCKCHIP_INNO_USB2=y"):
+            self.assertOption(line)
+
     def test_image_is_an_arm64_kernel(self):
         self.assertEqual((IMAGES / "Image").read_bytes()[0x38:0x3c], b"ARM\x64")
 
