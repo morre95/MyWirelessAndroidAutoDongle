@@ -25,7 +25,7 @@ full acceptance matrix on the exact release image.
 | AC-4 cold start | **Failed: over 30 s** | The dongle reconnected automatically without re-pairing every time. Three timed starts, from the car and head unit fully off to Android Auto running: **46.3 s, 36.8 s, 37.8 s**. The spec requires under 30 s. Tracked in [#30](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/30) |
 | AC-5 power reconnect | **Initial pass** | The car's off/on cycle removes USB power, and recovery was automatic. Five cycles and their timing are outstanding. The bench run in #12 also reconnected without re-pairing after power removal on four boots |
 | AC-6 session | **Initial pass, 10 minutes** | Spotify audio and Google Maps navigation worked with no dropouts or audio cut-outs. Display, touch, the car's controls and voice worked. The owner noted fewer dropouts than with the Pi unit used before. The 30-minute session and log review are outstanding |
-| AC-7 settings | **Partly verified** | `AAWG_UNIQUE_NAME_SUFFIX=Test` was set in `aawgd.conf` on the `WirelessAA` partition from a computer. After a cold start the phone still reconnected without re-pairing. Whether the Bluetooth name changed to `WirelessAADongle-Test` was not recorded |
+| AC-7 settings | **Passed** | `AAWG_UNIQUE_NAME_SUFFIX=Test` was set in `aawgd.conf` on the `WirelessAA` partition from a computer. After a cold start the phone listed the dongle as `WirelessAADongle-Test` and still reconnected without re-pairing |
 
 ## Startup timing
 
@@ -40,5 +40,4 @@ dongle has not been measured. No Pi baseline time on this car is recorded.
 
 - Startup under 30 s (AC-4), then 10 timed cold starts and 5 timed power reconnects (AC-5).
 - A 30-minute session with logs (AC-6).
-- Confirming that a setting changed through `aawgd.conf` takes effect, for example the Bluetooth name (AC-7).
 - Recording the cable and car USB port.
