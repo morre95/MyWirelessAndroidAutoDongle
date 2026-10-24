@@ -6,7 +6,7 @@ Proposed for release; the engineering source baseline below is selected for subs
 
 ## Date
 
-2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22; mainline Bluetooth attachment result and task #5 closure review added 2026-10-23; shipping kernel/boot-component defconfig build and first microSD image boots added 2026-10-23.
+2026-10-14; engineering source selection updated 2026-10-21; diagnostic mainline boot and radio-reset evidence added 2026-10-22; mainline Bluetooth attachment result and task #5 closure review added 2026-10-23; shipping kernel/boot-component defconfig build and first microSD image boots added 2026-10-23; AIC driver package in the shipping defconfig added 2026-10-24.
 
 ## Context
 
@@ -36,7 +36,7 @@ Existing Pi source pins and the Buildroot submodule remain unchanged.
 | DDR / BL31 | rkbin commit `f43a462e7a1429a9d407ae52b4745033034a6cf9`; `bin/rk35/rk3566_ddr_1056MHz_v1.23.bin` and `bin/rk35/rk3568_bl31_v1.44.elf` | Exact blobs verified inside the packed bootloader; retain rkbin notices; OP-TEE not selected |
 | Kernel | Linux 6.12.114, commit `85d82e0d7c2dfd3e75d34f35b7ebbf41f45c9c4e`, release archive `linux-6.12.114.tar.xz` | Full Image/modules link; three physical boot-only snapshots reach diagnostic userspace; external modules not loaded by that experiment |
 | Linux device tree | The same Linux input plus the board patches below; `rockchip/rk3566-radxa-zero-3w-aic8800d80.dtb` | Six compiled-property tests pass; five candidate property groups also pass against the radio boot's live DT; generic DT unchanged; schema and electrical timing remain unverified |
-| Radio driver | Radxa AIC tag `4.0+git20241119.06da8476-1`, commit `fc7cbdd1791416c2457fa27a59e508bf325c9c3f`; `src/SDIO/driver_fw/driver/aic8800` plus the patch series below | All three modules link; selected BSP/fdrv path without btlpm reached firmware readiness and successful HCI Reset in one diagnostic boot; AP/pairing/stability remain untested |
+| Radio driver | Radxa AIC tag `4.0+git20241119.06da8476-1`, commit `fc7cbdd1791416c2457fa27a59e508bf325c9c3f`; `src/SDIO/driver_fw/driver/aic8800` plus the patch series below | All three modules link; selected BSP/fdrv path without btlpm reached firmware readiness and successful HCI Reset in one diagnostic boot; since #10 the `aic8800` package builds BSP/fdrv into the shipping image; AP/pairing/stability remain untested |
 | Radio firmware/configuration | Only the six D80 files listed under [Firmware observed loading](#firmware-observed-loading), from that same AIC commit | All six SHA-256 values match the working reference card; selection remains subject to clarification of redistribution/source obligations |
 
 Use the source/archive hashes in [ARM64 compilation](#arm64-compilation-slice)
@@ -476,7 +476,7 @@ Compilation exposed three problems that patch-application checks did not detect:
 | `cfg80211_ops.set_monitor_channel` includes a net-device argument, but the patched SDK enables that path only at 6.13+ | `patches/aic8800/0001-Handle-monitor-callback-in-Linux-6.12.114.patch` enables the existing signature and both internal call sites for the pinned 6.12.114 candidate | Callback type error resolved |
 | Two RX preallocation definitions use `()` despite existing `(void)` declarations, rejected by Clang's strict-prototype check | `patches/aic8800/0002-Use-strict-RX-preallocation-prototypes.patch` matches the existing header declarations | All three AIC aggregate objects compile for ARM64 |
 
-The AIC patch paths above are relative to `aa_wireless_dongle/board/radxa/zero3w/`. These are preparation patches for the pinned candidates. Since task #7, `configs/radxa-zero3w_defconfig` applies the Linux patches; no defconfig consumes the AIC patches yet. Future integration must apply the existing two shared accessory patches **before** the board-local Linux patches (HID correction, DT variant, then GPIO defaults below), and the official AIC Debian patch series **before** the two scoped AIC patches. Give Radxa its own Linux download hash; do not select the Pi Linux hash or apply the Radxa-only patches to the retained Pi pin.
+The AIC patch paths above are relative to `aa_wireless_dongle/board/radxa/zero3w/`. These are preparation patches for the pinned candidates. Since task #7, `configs/radxa-zero3w_defconfig` applies the Linux patches; since task #10, its `aic8800` package applies the AIC patches. Future integration must apply the existing two shared accessory patches **before** the board-local Linux patches (HID correction, DT variant, then GPIO defaults below), and the official AIC Debian patch series **before** the two scoped AIC patches. Give Radxa its own Linux download hash; do not select the Pi Linux hash or apply the Radxa-only patches to the retained Pi pin.
 
 To reproduce on fresh, verified source extractions, set `RADXA_LINUX_SRC`, `RADXA_AIC_SRC`, `RADXA_OUT` and `RADXA_REPO` to absolute paths. `RADXA_AIC_SRC` is the archive root containing `src/` and `debian/`. Host tools must include LLVM/Clang, make, flex, bison and bc.
 
@@ -730,6 +730,23 @@ Task [#8](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/8) makes
 The DT aliases `mmc1 = &sdmmc0`, so the microSD card is `/dev/mmcblk1`. The kernel command line is `root=/dev/mmcblk1p2 rootwait console=ttyS2,1500000n8`, and `fstab` mounts `mmcblk1p1` at `/boot` (read-only) and `mmcblk1p3` at `/persist`. `tests/radxa_image_test.py` checks the table, offsets, bootloader bytes, boot files, `extlinux.conf`, `fstab`, the `aawgd.conf` symlink, the alias and the disabled eMMC controller.
 
 The image is 385,875,968 bytes, SHA-256 `2f3aff22279c5920609a536314d47aa097fa57eaf20796949e73181d305f0117`. A verified write of it booted twice headlessly on the V1.12M board from computer USB power. Both times the board's init mounted `persist` read-write and wrote the seedrng seed and `bluetooth/` there, and the data survived power removal. `WirelessAA` stayed a clean, computer-mountable volume. The host mounted the card read-write before each read-back copy, so rootfs immutability on the board is not shown by these copies. No serial console was available, so no boot log was captured. Details, hashes and limits are in the [microSD image handoff](../handoffs/2026-10-23-radxa-microsd-image.md). Radio, gadget and application runtime remain #9–#12.
+
+### AIC driver package: 2026-10-24
+
+Task [#10](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/10) adds the external Buildroot package `aic8800` (Buildroot 2026.02.3 has none) and selects it in `configs/radxa-zero3w_defconfig`. It downloads the pinned AIC commit with mandatory hash checking, using the archive SHA-256 recorded above. A pre-patch hook applies the archive's `debian/patches/series` through Buildroot's `apply-patches.sh`; Buildroot's patch step then applies the two board patches from the global patch dir. The build log shows that order.
+
+The hook applies whole Debian patches with `patch`, not `git apply --include='src/SDIO/**'`, because Buildroot does not require host git. All 19 apply to the pinned archive. The extra hunks touch PCIe, USB and tool directories that this package never builds. A recursive comparison with the ADR's `--include` method plus the same two board patches found the resulting `src/SDIO` trees identical.
+
+The package builds `src/SDIO/driver_fw/driver/aic8800` with `CONFIG_AIC8800_BTLPM_SUPPORT=n`, so `aic8800_btlpm` is neither built nor installed. The driver's own defaults already match the startup contract and are not overridden: `CONFIG_PLATFORM_UBUNTU=y`, `CONFIG_PLATFORM_ROCKCHIP=n`, `CONFIG_PLATFORM_ROCKCHIP2=n`, `CONFIG_GPIO_WAKEUP=n`, `CONFIG_MCU_MESSAGE=n`, `AICBT_LPM_ENABLE_DEFAULT 0` and firmware path `/lib/firmware/aic8800_fw/SDIO/aic8800D80`. The board `linux.fragment` remains the single source for the radio's kernel prerequisites: `CFG80211=m` and `MMC=y` for Wi-Fi/AP, and `BT=m`, `BT_HCIUART=m` and `BT_HCIUART_H4=y` for the UART1 Bluetooth transport. No external adapter driver is added.
+
+The package declares `GPL-2.0` following Radxa's clarification in [radxa-pkg/aic8800#54](https://github.com/radxa-pkg/aic8800/issues/54). The only license text in the archive, its GPL-3.0 `LICENSE`, is the declared license file until #11 settles the terms. No firmware is installed; that is #11.
+
+| Installed module (`/lib/modules/6.12.114/updates/`) | Bytes | SHA-256 |
+| --- | --- | --- |
+| `aic8800_bsp/aic8800_bsp.ko` | 151,680 | `08297de5fee6c952256e4a72b26b786c2ea0cde23a40b5f7620dc5f275f4f88b` |
+| `aic8800_fdrv/aic8800_fdrv.ko` | 729,560 | `3da8ff92bad4c0b008b43a77a1d8fa485353d4fdf089ea9baabe5dbe06451fa9` |
+
+Both modules have vermagic `6.12.114 SMP preempt mod_unload aarch64`. `aic8800_fdrv` (version `6.4.3.0`) depends on `cfg80211,aic8800_bsp` and declares the D80 Wi-Fi alias `sdio:c*vC8A1d0082*`. `aic8800_bsp` matches by SDIO WLAN class (`sdio:c07v*d*`), not by the `c8a1:0182` ID it binds on the board. The image uses static devtmpfs without hotplug, so these aliases do not autoload the modules; loading belongs to the startup task (#12). `tests/radxa_wireless_driver_test.py` checks the selection, patch order, audited options, installed modules, dependencies, aliases, absent firmware and kernel prerequisites. These hashes identify one local build. Nothing from this build has been booted.
 
 ## Consequences and next evidence
 
