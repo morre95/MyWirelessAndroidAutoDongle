@@ -50,6 +50,14 @@ class KernelTests(unittest.TestCase):
                      "CONFIG_BT_HCIUART=m", "CONFIG_BT_HCIUART_H4=y"):
             self.assertOption(line)
 
+    def test_l2cap_getsockopt_reaches_its_iter_callback(self):
+        # 6.12.114 gives L2CAP only getsockopt_iter; without board patch 0006 the
+        # socket core never calls it and BlueZ cannot register the adapter.
+        self.assertIn(".getsockopt_iter = l2cap_sock_getsockopt",
+                      (KERNEL / "net/bluetooth/l2cap_sock.c").read_text())
+        self.assertIn("err = ops->getsockopt_iter(sock, level, optname, &opt);",
+                      (KERNEL / "net/socket.c").read_text())
+
     def test_bnep_stays_disabled(self):
         self.assertOption("# CONFIG_BT_BNEP is not set")
 
