@@ -1,8 +1,8 @@
 # Radxa ZERO 3W additions to the upstream ARM64 defconfig and board/common/kernel.config
 
-# USB accessory gadget
-CONFIG_USB_LIBCOMPOSITE=m
-CONFIG_USB_CONFIGFS=m
+# USB accessory gadget, built in: the image has no hotplug module loading
+CONFIG_USB_LIBCOMPOSITE=y
+CONFIG_USB_CONFIGFS=y
 CONFIG_HID=y
 
 # Wi-Fi and microSD/SDIO
