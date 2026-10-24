@@ -83,9 +83,6 @@ class ModuleTests(unittest.TestCase):
         dep = (MODULES / "modules.dep").read_text()
         self.assertRegex(dep, r"updates/\S*aic8800_fdrv\.ko\S*: .*aic8800_bsp\.ko")
 
-    def test_no_firmware_is_installed_before_task_11(self):
-        self.assertFalse((OUTPUT / "target/lib/firmware/aic8800_fw").exists())
-
 
 class KernelPrerequisiteTests(unittest.TestCase):
     @classmethod

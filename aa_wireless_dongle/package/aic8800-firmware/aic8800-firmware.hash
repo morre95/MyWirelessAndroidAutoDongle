@@ -1,0 +1,6 @@
+# Locally computed; the same files at the tag on git.kernel.org:
+sha256  a526cbd02fcdc495f049f3ad6b5933cb08cd984b16790c716a060d582fee1a56  fw_adid_8800d80_u02.bin
+sha256  be3d13e5cf1adb18a57dc829da34f6bf9450ace5c92b8d9baa39f55ba310318f  fw_patch_8800d80_u02.bin
+sha256  6fb9284b3d1d6ba88e1495adce7c2da02c0cc8cd0df83a6ca23c2f8a5f0d8a45  fw_patch_table_8800d80_u02.bin
+sha256  ea91583a4b0004d8e8e7fb304b49a85df9468ddca42fb52841e37c7bb825de42  fmacfw_8800d80_u02.bin
+sha256  32abfdc0476b2ddb9942d01b0fbe798a581d4618c88931d50d8e0e8ab142f513  LICENSE.aic

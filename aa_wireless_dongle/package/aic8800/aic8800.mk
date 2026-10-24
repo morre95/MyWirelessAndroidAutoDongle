@@ -23,5 +23,13 @@ define AIC8800_APPLY_DEBIAN_PATCHES
 endef
 AIC8800_PRE_PATCH_HOOKS += AIC8800_APPLY_DEBIAN_PATCHES
 
+# Transmit-power table read by aic8800_fdrv next to the firmware. It is
+# plain-text source, unlike the binaries, which come from aic8800-firmware.
+define AIC8800_INSTALL_USERCONFIG
+	$(INSTALL) -D -m 0644 $(@D)/src/SDIO/driver_fw/fw/aic8800D80/aic_userconfig_8800d80.txt \
+		$(TARGET_DIR)/lib/firmware/aic8800_fw/SDIO/aic8800D80/aic_userconfig_8800d80.txt
+endef
+AIC8800_POST_INSTALL_TARGET_HOOKS += AIC8800_INSTALL_USERCONFIG
+
 $(eval $(kernel-module))
 $(eval $(generic-package))
