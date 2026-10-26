@@ -1,0 +1,80 @@
+name: Release
+
+# Publish the images of an earlier, successful build on main as a GitHub
+# Release. The images are not reproducible byte for byte, so rebuilding them
+# at release time would publish files that were never tested on hardware.
+# The release tag is created on the commit that build ran on.
+on:
+  workflow_dispatch:
+    inputs:
+      run-id:
+        description: Run id of a successful "Makefile CI" push build on main
+        required: true
+      tag:
+        description: Release tag, for example v0.2.0
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Check the build run and tag
+        id: build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run-id }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag must look like v1.2.3, got '$TAG'"
+            exit 1
+          fi
+          sha=$(gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --json workflowName,headBranch,event,conclusion,headSha \
+            --jq 'select(.workflowName == "Makefile CI" and .headBranch == "main"
+                         and .event == "push" and .conclusion == "success") | .headSha')
+          if [ -z "$sha" ]; then
+            echo "::error::Run $RUN_ID is not a successful Makefile CI push build on main"
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      # The per-board artifacts only; WirelessAndroidAutoDongle-all holds the
+      # same images again and would upload every file twice.
+      - uses: actions/download-artifact@v7
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.run-id }}
+          pattern: WirelessAndroidAutoDongle-raspberrypi*
+          merge-multiple: true
+          path: images
+
+      - uses: actions/download-artifact@v7
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.run-id }}
+          pattern: WirelessAndroidAutoDongle-radxa*
+          merge-multiple: true
+          path: images
+
+      - name: Verify the image checksums
+        run: sha256sum -c -- *.sha256
+        working-directory: images
+
+      # Release assets never expire and can be downloaded without a GitHub
+      # account, unlike workflow artifacts, which are kept for 90 days and
+      # need a login.
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          SHA: ${{ steps.build.outputs.sha }}
+        run: >
+          gh release create "$TAG" images/*.img.xz images/*.sha256
+          --repo "$GITHUB_REPOSITORY"
+          --target "$SHA"
+          --title "$TAG"
+          --generate-notes

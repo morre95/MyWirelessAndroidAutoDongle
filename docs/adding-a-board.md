@@ -108,11 +108,11 @@ configured per board.
 - `.github/workflows/build.yml`: add the defconfig to the build matrix. Each
   job uploads `<defconfig>-sdcard.img.xz` and its `.sha256`. Radxa also needs
   the "Free disk space" step, because its build takes about 14 GB.
-- Release: the release job downloads artifacts by name pattern
-  (`WirelessAndroidAutoDongle-raspberrypi*` and `WirelessAndroidAutoDongle-radxa*`).
-  A board whose defconfig starts with something else needs its own download
-  step, or its image is left out of the release. Never use the `-all`
-  artifact, which duplicates every image.
+- Release: `.github/workflows/release.yml` downloads the build run's artifacts
+  by name pattern (`WirelessAndroidAutoDongle-raspberrypi*` and
+  `WirelessAndroidAutoDongle-radxa*`). A board whose defconfig starts with
+  something else needs its own download step, or its image is left out of the
+  release. Never use the `-all` artifact, which duplicates every image.
 - `BUILDING.md`: add the board's row to the Compose table.
 
 ### 7. Verification
