@@ -19,7 +19,7 @@ This is currently tested and built for the following Raspberry Pi boards support
 - **Raspberry Pi 5**
 
 ### In testing
-- **Radxa ZERO 3W**: only the tested variant (PCB V1.12M, 1 GB RAM, **no eMMC**, AIC8800D80 radio), booting from microSD. Its image builds and works in a car, but physical acceptance is not finished yet, see [Limitations](#limitations). Variants with eMMC or another revision are not supported. The first release containing `radxa-zero3w-sdcard.img.xz` is still to come; until then, [build it yourself](BUILDING.md).
+- **Radxa ZERO 3W**: only the tested variant (PCB V1.12M, 1 GB RAM, **no eMMC**, AIC8800D80 radio), booting from microSD. It has passed physical acceptance in a car and stays in testing until its first release is checked, see [Limitations](#limitations). Variants with eMMC or another revision are not supported. The first release containing `radxa-zero3w-sdcard.img.xz` is still to come; until then, [build it yourself](BUILDING.md).
 
 In theory, this can be extended to more hardware in future with these basic requirements.
 
@@ -107,6 +107,6 @@ This is currently tested with very limited set of headunits and cars. Let me kno
 
 ### Radxa ZERO 3W
 The Radxa ZERO 3W is in testing. So far it has been tested with one board, one phone (Samsung Galaxy S24) and one car head unit. See the [hardware validation record](docs/hardware-validation/radxa-zero3w.md) for the results.
-- From a fully switched-off car, Android Auto started after 37–46 seconds, above the 30 seconds listed in the features. The time includes the head unit's own boot.
+- From a fully switched-off car, Android Auto started in 21–27 seconds over 10 cold starts, including the head unit's own boot. A Raspberry Pi Zero 2 W in the same car took 16–24 seconds. An earlier series had one start at exactly 30 seconds.
 - Only the variant listed under [In testing](#in-testing) is tested. Boards with eMMC are not supported.
-- Long sessions and repeated cold starts are still being tested.
+- A 50-minute session with navigation and music had no disconnects. No logs were reviewed for it.
