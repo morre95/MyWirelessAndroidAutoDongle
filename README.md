@@ -17,7 +17,10 @@ This is currently tested and built for the following Raspberry Pi boards support
 - **Raspberry Pi 3 A+** _(Raspberry Pi 3 B+ is not supported due to lack of USB OTG support.)_
 - **Raspberry Pi 4**
 - **Raspberry Pi 5**
-  
+
+### In testing
+- **Radxa ZERO 3W**: only the tested variant (PCB V1.12M, 1 GB RAM, **no eMMC**, AIC8800D80 radio), booting from microSD. Its image builds and works in a car, but physical acceptance is not finished yet, see [Limitations](#limitations). Variants with eMMC or another revision are not supported. The first release containing `radxa-zero3w-sdcard.img.xz` is still to come; until then, [build it yourself](BUILDING.md).
+
 In theory, this can be extended to more hardware in future with these basic requirements.
 
 - The board should support USB OTG or Gadget mode.
@@ -27,6 +30,14 @@ In theory, this can be extended to more hardware in future with these basic requ
 ## Install and run
 [Download a pre-built sd card image](https://github.com/morre95/MyWirelessAndroidAutoDongle/releases) for your board. You can also [build one yourself](BUILDING.md). Install the image on the SD card using your favorite tool.
 
+Release images are named `<board>-sdcard.img.xz`, for example `radxa-zero3w-sdcard.img.xz`. Newer releases also carry a `.sha256` file next to each image. Download both into the same folder and check the image before flashing:
+
+```shell
+sha256sum -c radxa-zero3w-sdcard.img.xz.sha256
+```
+
+Most imaging tools, such as Raspberry Pi Imager and balenaEtcher, can flash the `.img.xz` file directly. The image is about 386 MB, so any microSD card will fit it. The Radxa ZERO 3W was tested with a 32 GB SanDisk Ultra card.
+
 You may want to update the country code and other settings that works best for you. See [Configurations](#Configurations)
 
 ### First-time connection
@@ -35,6 +46,7 @@ You may want to update the country code and other settings that works best for y
     - On **Raspberry Pi Zero W** and **Raspberry Pi Zero 2 W**: Use the second micro-usb port marked "USB" and not "PWR".
     - On **Raspberry Pi 3 A+**: Use the only USB-A port with an USB-A to USB-A cable.
     - On **Raspberry Pi 4**, use the USB-C port used for normally powering the board.
+    - On **Radxa ZERO 3W**: Use USB-C port 1, the USB 2.0 OTG port that also powers the board, with a USB-C to USB-A data cable to the car. The other USB-C port is a USB 3.0 host port and does not power the board.
 - Open Bluetooth settings and pair the new device called `AndroidAuto-Dongle-*` or `WirelessAADongle-*` on your phone.
 - After this phone should automatically connect via Wifi and the dongle will connect to the headunit via USB and start Android Auto on the car screen.
 
@@ -48,6 +60,8 @@ Make sure your Bluetooth and Wifi are enabled on the phone.
 Once the image is installed on the SD card, you can see the SD card as `WirelessAA` drive.
 
 Edit the `aawgd.conf` file inside the `WirelessAA` drive using a text editor to update the configurations. The file contains the possible configuration options with their explanations.
+
+The Radxa ZERO 3W runs its Wi-Fi access point on 5 GHz (channel 36); the Raspberry Pi boards use 2.4 GHz. Set `AAWG_COUNTRY_CODE` to the country you drive in.
 
 
 ## Troubleshoot
@@ -76,6 +90,8 @@ Once you've already tried multiple times and it still does not work, you can ssh
 - SSH into the device (username: root, password: password, see relevant defconfigs e.g. [raspberrypi0w_defconfig](aa_wireless_dongle/configs/raspberrypi0w_defconfig)).
 - Once you're in, try to have a look at `/var/log/messages` file, it should have most relevant logs to start with. You can also copy the file and attach to issues you create if any.
 
+These steps are the same on the Radxa ZERO 3W, whose access point is on 5 GHz.
+
 ## Contribute
 [Find or create a new issue](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues) for any bugs or improvements.
 
@@ -88,3 +104,9 @@ In any case, don't forget to star on github and spread the word if you think thi
 
 ## Limitations
 This is currently tested with very limited set of headunits and cars. Let me know if it does not work with your headunit.
+
+### Radxa ZERO 3W
+The Radxa ZERO 3W is in testing. So far it has been tested with one board, one phone (Samsung Galaxy S24) and one car head unit. See the [hardware validation record](docs/hardware-validation/radxa-zero3w.md) for the results.
+- From a fully switched-off car, Android Auto started after 37–46 seconds, above the 30 seconds listed in the features. The time includes the head unit's own boot.
+- Only the variant listed under [In testing](#in-testing) is tested. Boards with eMMC are not supported.
+- Long sessions and repeated cold starts are still being tested.
