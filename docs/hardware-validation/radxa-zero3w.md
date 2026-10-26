@@ -14,7 +14,7 @@ full acceptance matrix on the exact release image.
 | Board | Radxa ZERO 3W, PCB V1.12M, 1 GB RAM, no eMMC; radio AIC8800D80 over SDIO, Bluetooth on UART1 |
 | Phone | Samsung Galaxy S24, SM-S921B/DS |
 | Head unit | Part number 3Q0035824C, hardware 724, software 0890, media codec 1.2.0 (from its system information screen) |
-| Connection | The board's USB data/power port to the car's USB port. The cable and which car port were not recorded |
+| Connection | The board's USB-C 1 (OTG and power) port to the car's USB port, with a USB-C to USB-A cable (owner, 2026-10-26). Which car port was not recorded |
 | `aawgd.conf` | As built (country `SE`, phone-first strategy), until the AC-7 check below |
 
 ## Results
@@ -40,4 +40,32 @@ dongle has not been measured. No Pi baseline time on this car is recorded.
 
 - Startup under 30 s (AC-4), then 10 timed cold starts and 5 timed power reconnects (AC-5).
 - A 30-minute session with logs (AC-6).
-- Recording the cable and car USB port.
+- Recording the car USB port.
+
+## Bill of materials (recorded 2026-10-26)
+
+Cost of the tested setup against the spec's target of about SEK 400 (AC-10).
+The amounts are what the owner paid, as the owner reported them on 2026-10-26.
+They are not current market prices. The board arrived on 2026-10-21; the
+order date was not recorded.
+
+| Component | Product | Needed | Bought or owned | Shop | Price |
+| --- | --- | --- | --- | --- | ---: |
+| Board | Radxa ZERO 3W, 1 GB RAM, no eMMC (PCB V1.12M) | Yes | Bought | AliExpress | 683 kr |
+| microSD card | SanDisk Ultra microSD, 32 GB | Yes | Bought | AliExpress | 159 kr |
+| Data cable | USB-C to USB-A | Yes | Not in the purchase list | — | Not recorded |
+| Power supply, hub or adapter | None: the board runs from the car's USB port | No | — | — | 0 kr |
+| Shipping | For the AliExpress order | — | — | AliExpress | 176 kr |
+
+VAT was not reported separately; whether it is included in the amounts above
+was not recorded.
+
+| Total | Amount | Against SEK 400 |
+| --- | ---: | ---: |
+| Parts (board and card) | 842 kr | +442 kr |
+| Parts and shipping | 1,018 kr | +618 kr |
+
+**Cost deviation, reviewed by the owner on 2026-10-26:** the SEK 400 target
+did not cover every needed part. The owner accepts the higher cost, because the
+build is still significantly cheaper than a Raspberry Pi Zero, which was the
+goal to beat. No Raspberry Pi price is recorded here.
