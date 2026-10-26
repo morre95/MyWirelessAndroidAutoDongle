@@ -42,6 +42,9 @@ make later builds faster.
 | Raspberry Pi 5 | `rpi5` | `raspberrypi5_defconfig` | `images/sdcard-raspberrypi5.img` |
 | Radxa ZERO 3W | `radxa-zero3w` | `radxa-zero3w_defconfig` | `images/sdcard-radxa-zero3w.img` |
 
+The Radxa ZERO 3W build is larger than the Raspberry Pi builds: its build
+directory takes about 14 GB of disk.
+
 For an interactive shell inside the build container, run:
 
 ```shell
@@ -63,7 +66,8 @@ make -C output/raspberrypizero2w
 
 For another board, replace both occurrences of `raspberrypizero2w` with the
 board name shown in the defconfig column, without the `_defconfig` suffix. For
-example, use `raspberrypi5` for a Raspberry Pi 5.
+example, use `raspberrypi5` for a Raspberry Pi 5, or `radxa-zero3w` for a
+Radxa ZERO 3W.
 
 The manually built image is created at:
 
@@ -73,7 +77,15 @@ buildroot/output/<board>/images/sdcard.img
 
 ## Install the image
 
-Write the generated `.img` file to a microSD card using Raspberry Pi Imager or
+GitHub Actions publishes each board's image as `<defconfig>-sdcard.img.xz`
+together with `<defconfig>-sdcard.img.xz.sha256`. Check a downloaded image
+from the folder that holds both files:
+
+```shell
+sha256sum -c radxa-zero3w-sdcard.img.xz.sha256
+```
+
+Write the generated `.img` file, or a downloaded `.img.xz` file, to a microSD card using Raspberry Pi Imager or
 another disk-imaging tool. Select the generated file as a custom image. Writing
 the image erases the selected card, so verify the destination carefully.
 
