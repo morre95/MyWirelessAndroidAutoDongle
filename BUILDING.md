@@ -100,12 +100,32 @@ the one tested on hardware.
 
 1. Pick a successful run of the "Makefile CI" workflow from a push to `main`,
    and test its images. The run id is the number at the end of the run's URL.
-2. Run the "Release" workflow from the Actions tab, or from the command line:
+   Build artifacts are kept for 90 days, so release a run before then.
+2. Download the run's per-board images and check them:
 
    ```shell
-   gh workflow run release.yml -f run-id=<run id> -f tag=v1.2.3
+   gh run download <run id> -p 'WirelessAndroidAutoDongle-raspberrypi*' -p 'WirelessAndroidAutoDongle-radxa*' -D release
+   (cd release && for d in */; do (cd "$d" && sha256sum -c -- *.sha256); done)
    ```
 
-The workflow checks the run, verifies every image against its checksum, and
-creates the release with its tag on the commit that run built. Build artifacts
-are kept for 90 days, so release a run before then.
+3. Tag the commit that run built, shown by
+   `gh run view <run id> --json headSha -q .headSha`:
+
+   ```shell
+   git tag v1.2.3 <commit> && git push origin v1.2.3
+   ```
+
+   If that commit is older than the "Release" workflow, its own "Makefile CI"
+   still builds and releases on tags. Cancel the run the tag starts with
+   `gh run cancel`, or it publishes freshly built images.
+4. Create the release from the downloaded files:
+
+   ```shell
+   gh release create v1.2.3 release/*/* --verify-tag --title v1.2.3 --generate-notes
+   ```
+
+The "Release" workflow (`gh workflow run release.yml -f run-id=<run id> -f tag=v1.2.3`)
+automates these steps. Its first run, for v0.2.0, failed with
+`HTTP 403: Resource not accessible by integration` when creating the release,
+even with the tag already pushed. The cause is not known, so v0.2.0 was
+released with the steps above.

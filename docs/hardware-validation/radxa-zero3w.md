@@ -39,7 +39,18 @@ screen is usable. **AA** is when Android Auto is on screen and responds to touch
 | AC-9 shared code | **Passed** | The Radxa overlay adds only `etc/fstab` and `etc/hostapd.conf.in`; `package/aawg/` has no board-specific code. The checklist is [docs/adding-a-board.md](../adding-a-board.md) |
 | AC-10 docs and cost | **Passed, with a reviewed deviation** | Docs from [#15](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/15). The cost is over target, accepted by the owner; see the [bill of materials](#bill-of-materials-recorded-2026-10-26) |
 
-AC-2, the published release, is checked in [task #17](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/17).
+### Release (2026-10-26)
+
+Checked in [task #17](https://github.com/morre95/MyWirelessAndroidAutoDongle/issues/17).
+
+| Spec criterion | Result | Notes |
+| --- | --- | --- |
+| AC-2 release | **Passed** | [v0.2.0](https://github.com/morre95/MyWirelessAndroidAutoDongle/releases/tag/v0.2.0) is published and marked as the latest release. Its tag points at `b86bf48`, the candidate commit. It holds all six images with their `.sha256` files, the same files as the candidate run |
+
+- The Radxa asset, downloaded without logging in, passes `sha256sum -c`. Its SHA-256 is `4ee48edc490c0f76b08ac173186aeb0591b94341e05d268810a26f34b76057ed`, and it decompresses to 385,875,968 bytes with SHA-256 `d79c85e5f31497829ad20e0eaf2297158947ebf88eb9921fe28581ee8c587a4e`: the image tested above.
+- The Raspberry Pi Zero 2 W asset passes `sha256sum -c` too, with SHA-256 `00717adbfa84e1d408741098d309ae73665361ad1b1beae040952f94e1392ea7`.
+- The release notes list the tested variant, the USB-C port and cable, the 5 GHz access point and the tested phone and head unit.
+- The release was created by hand from the candidate files. The `Release` workflow failed with HTTP 403 when creating it; see [BUILDING.md](../../BUILDING.md#publish-a-release).
 
 ### Cold starts
 
