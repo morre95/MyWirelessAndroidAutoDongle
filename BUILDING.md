@@ -91,3 +91,21 @@ the image erases the selected card, so verify the destination carefully.
 
 After flashing, see the [Install and run](README.md#install-and-run) section for
 configuration, cabling, and first-time phone pairing instructions.
+
+## Publish a release
+
+Releases publish the images of an earlier build instead of building them again.
+The images are not reproducible byte for byte, so a new build would differ from
+the one tested on hardware.
+
+1. Pick a successful run of the "Makefile CI" workflow from a push to `main`,
+   and test its images. The run id is the number at the end of the run's URL.
+2. Run the "Release" workflow from the Actions tab, or from the command line:
+
+   ```shell
+   gh workflow run release.yml -f run-id=<run id> -f tag=v1.2.3
+   ```
+
+The workflow checks the run, verifies every image against its checksum, and
+creates the release with its tag on the commit that run built. Build artifacts
+are kept for 90 days, so release a run before then.
