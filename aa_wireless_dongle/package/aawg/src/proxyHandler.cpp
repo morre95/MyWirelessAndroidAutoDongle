@@ -44,7 +44,9 @@ ssize_t AAWProxy::readFully(int fd, unsigned char *buffer, size_t nbyte, std::at
     while (remaining_bytes > 0) {
         ssize_t len = read(fd, buffer, remaining_bytes);
 
-        if (len < 0 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)) {
+        // Retry signals, but propagate SO_RCVTIMEO's EAGAIN/EWOULDBLOCK so
+        // a stalled TCP session reaches the normal teardown/reconnect path.
+        if (len < 0 && errno == EINTR) {
             if (should_exit) {
                 return -1;
             }
@@ -173,7 +175,12 @@ void AAWProxy::forward(ProxyDirection direction, std::atomic<bool>& should_exit)
         }
 
         if (len < 0) {
-            Logger::instance()->info("Read from %s failed: %s\n", read_name.c_str(), strerror(errno));
+            if (direction == ProxyDirection::TCP_to_USB &&
+                (read_errno == EAGAIN || read_errno == EWOULDBLOCK)) {
+                Logger::instance()->info("TCP receive timed out; stopping forwarding to reconnect\n");
+            } else {
+                Logger::instance()->info("Read from %s failed: %s\n", read_name.c_str(), strerror(read_errno));
+            }
             break;
         }
         else if (len == 0) {

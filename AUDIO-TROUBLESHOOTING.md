@@ -95,7 +95,29 @@ collecting this baseline.
 After testing, disable `AAWG_PROXY_DIAGNOSTICS` and SSH again if no longer needed.
 `TCP_NODELAY` defaults to enabled; diagnostics and SSH default to disabled.
 
-## Local regression check
+## Recovery after a stalled connection
+
+The daemon now ends the session when its existing 10-second TCP receive timeout
+expires, including when only part of a frame has arrived. Previously the reader
+retried the timeout indefinitely. The log now identifies this case as
+`TCP receive timed out; stopping forwarding to reconnect`.
+
+This is a timeout on each blocking read, not a total deadline for a frame or a
+promise to reconnect within 10 seconds. Received data can extend the time needed
+to read a frame. USB teardown, Bluetooth retries and connection setup still take
+additional time. This change improves recovery from a silent connection; it does
+not prevent Wi-Fi interference or repair its underlying cause.
+
+Rebuild the daemon and image using the commands above to include this fix.
+
+## Local regression checks
+
+The timeout tests compile the production reader methods and exercise real local
+TCP connections with a shorter timeout, without a Pi or Bluetooth service:
+
+```sh
+python3 tests/proxy_timeout_test.py -v
+```
 
 This checks the real TCP socket option and bounded diagnostic logging, without
 a Pi or Bluetooth service:
