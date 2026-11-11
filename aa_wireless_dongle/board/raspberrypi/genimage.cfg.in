@@ -21,7 +21,10 @@ image persist.ext4 {
 
 
 image sdcard.img {
+	# Align partitions to the SD card's erase-block size so writes to
+	# /persist never share flash blocks with the read-only partitions.
 	hdimage {
+		align = 4M
 	}
 
 	partition boot {
