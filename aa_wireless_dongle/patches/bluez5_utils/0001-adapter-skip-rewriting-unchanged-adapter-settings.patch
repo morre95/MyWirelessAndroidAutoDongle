@@ -1,0 +1,45 @@
+From: Wireless Android Auto Dongle <noreply@localhost>
+Subject: [PATCH] adapter: skip rewriting unchanged adapter settings
+
+store_adapter_info() rewrites <storage>/<adapter>/settings on every
+Discoverable change, even when the serialized contents are identical.
+On a dongle whose power is cut without shutdown, each needless write
+to the SD card is a chance to corrupt it. Compare with the stored file
+and only write when the contents differ.
+
+---
+--- a/src/adapter.c
++++ b/src/adapter.c
+@@ -545,6 +545,22 @@
+ 	return adapter->bdaddr_type;
+ }
+ 
++static gboolean file_has_contents(const char *filename, const char *str,
++							gsize length)
++{
++	char *current;
++	gsize current_length;
++	gboolean same;
++
++	if (!g_file_get_contents(filename, &current, &current_length, NULL))
++		return FALSE;
++
++	same = current_length == length && !memcmp(current, str, length);
++	g_free(current);
++
++	return same;
++}
++
+ static void store_adapter_info(struct btd_adapter *adapter)
+ {
+ 	GKeyFile *key_file;
+@@ -583,7 +599,8 @@
+ 	create_file(filename, 0600);
+ 
+ 	str = g_key_file_to_data(key_file, &length, NULL);
+-	if (!g_file_set_contents(filename, str, length, &gerr)) {
++	if (!file_has_contents(filename, str, length) &&
++			!g_file_set_contents(filename, str, length, &gerr)) {
+ 		error("Unable set contents for %s: (%s)", filename,
+ 								gerr->message);
+ 		g_error_free(gerr);
