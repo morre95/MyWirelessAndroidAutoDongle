@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "aawg")(type "KiCad")(uri "${KIPRJMOD}/lib/aawg.pretty")(options "")(descr "Project footprints"))
+)
