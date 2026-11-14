@@ -1,5 +1,5 @@
 #!/bin/bash
-S=/tmp/claude-1000/-home-cryptofarian-cpp-MyWirelessAndroidAutoDongle/50c2d33c-f7a4-4a25-822f-afe4f7da22e3/scratchpad
+S=${DRC_OUT:-$(mktemp -d)}
 kicad-cli pcb drc --refill-zones --save-board --severity-all --format json -o $S/drc.json f133-dongle.kicad_pcb 2>&1 | grep -v Typsnitt | tail -1
 python3 - <<P
 import json,collections,re
