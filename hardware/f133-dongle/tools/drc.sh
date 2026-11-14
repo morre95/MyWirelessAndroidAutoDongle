@@ -1,6 +1,7 @@
 #!/bin/bash
 S=${DRC_OUT:-$(mktemp -d)}
-kicad-cli pcb drc --refill-zones --save-board --severity-all --format json -o $S/drc.json f133-dongle.kicad_pcb 2>&1 | grep -v Typsnitt | tail -1
+B=${1:-f133-dongle.kicad_pcb}
+kicad-cli pcb drc --refill-zones --save-board --severity-all --format json -o $S/drc.json $B 2>&1 | grep -v Typsnitt | tail -1
 python3 - <<P
 import json,collections,re
 d=json.load(open('$S/drc.json'))
