@@ -8,7 +8,6 @@
 	(property "Value" "AMPAK_AP62xx_12x12mm" (at 0 7.60 0) (layer "F.Fab") (effects (font (size 1 1) (thickness 0.15))))
 	(fp_rect (start -6.000 -6.000) (end 6.000 6.000) (stroke (width 0.1) (type solid)) (fill no) (layer "F.Fab"))
 	(fp_rect (start -6.550 -6.550) (end 6.550 6.550) (stroke (width 0.05) (type solid)) (fill no) (layer "F.CrtYd"))
-	(fp_circle (center -7 -4.5) (end -6.85 -4.5) (stroke (width 0.3) (type solid)) (fill yes) (layer "F.SilkS"))
 	(fp_line (start -6.1 -6.1) (end -6.1 -5.2) (stroke (width 0.12) (type solid)) (layer "F.SilkS"))
 	(fp_line (start -6.1 -6.1) (end -5.2 -6.1) (stroke (width 0.12) (type solid)) (layer "F.SilkS"))
 	(pad "1" smd roundrect (at -5.7000 -4.5000) (size 1.2 0.5) (layers "F.Cu" "F.Mask" "F.Paste") (roundrect_rratio 0.2))

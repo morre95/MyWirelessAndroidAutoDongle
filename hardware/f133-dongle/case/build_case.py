@@ -5,7 +5,7 @@ Writes f133-dongle-case.FCStd plus STEP and STL files next to this script and
 prints a fit report (interference volumes and clearances).
 
 Case frame (mm): x = KiCad x - board left, y = board bottom - KiCad y, z = 0 at
-the bottom face of the PCB. The USB plug points towards -x.
+the bottom face of the PCB. The USB-C receptacle opens towards -x.
 """
 import json
 import os
@@ -23,19 +23,18 @@ PCB_LENGTH, PCB_WIDTH, PCB_THICKNESS = BOARD["length"], BOARD["width"], BOARD["t
 PCB_CORNER_RADIUS = 1.5
 MOUNT_HOLES = [(h["x"], h["y"]) for h in BOARD["mount_holes"]]
 MOUNT_HOLE_DIAMETER = BOARD["mount_holes"][0]["diameter"]
-PLUG_Y = BOARD["plug_center_y"]
 
-# USB-A plug, CNC Tech 1001-011-01101 (drawing 2015-09-09)
-PLUG_TIP_X, PLUG_REAR_X = -14.7, 4.1
-PLUG_WIDTH, PLUG_HEIGHT = 12.05, 4.5
-PLUG_TOP_Z = PCB_THICKNESS + 3.25  # shell top is 3.25 above the PCB top face
-PLUG_POST_DEPTH = 1.25             # shield tabs and posts below the PCB
-PLUG_EXPOSED_LENGTH = 12.0         # standard USB-A plug length in front of the overmold
+# USB-C receptacle, HRO TYPE-C-31-M-12 (KiCad footprint origin = body centre)
+USBC_X, USBC_Y = BOARD["usb_connector"]["x"], BOARD["usb_connector"]["y"]
+USBC_LENGTH, USBC_WIDTH, USBC_HEIGHT = 7.3, 8.94, 3.26
+USBC_MOUTH_X = USBC_X - USBC_LENGTH / 2
+USBC_TOP_Z = PCB_THICKNESS + USBC_HEIGHT
+USBC_LEG_DEPTH = 0.8               # shell legs below the PCB
+USBC_LEG_OFFSETS = (-1.05, 3.13)   # leg rows, measured from the body centre towards the rear
 
-# Mating USB-A receptacle (extension cable or car socket), for the fit check
-RECEPTACLE_DEPTH = 10.3
-RECEPTACLE_OPENING = (12.5, 5.12)
-RECEPTACLE_BODY = (16.0, 8.0)
+# Mating USB-C cable plug, for the fit check (USB Type-C spec maximum overmold)
+CABLE_OVERMOLD = (12.35, 6.5)
+CABLE_TIP = (8.25, 2.4, 6.65)      # width, height, insertion length
 
 # Shell
 BOARD_GAP = 0.3
@@ -43,8 +42,8 @@ WALL = 1.6
 FLOOR = 1.2
 LID = 1.2
 FLOOR_Z = -1.5
-CEILING_Z = PLUG_TOP_Z + 0.15
-PLUG_SLOT_GAP = 0.2
+CEILING_Z = USBC_TOP_Z + 0.15
+CONNECTOR_SLOT_GAP = 0.2
 
 LIP_THICKNESS, LIP_DEPTH, LIP_GAP = 0.8, 2.0, 0.2
 LIP_X_RANGE = (3.0, 73.0)          # stops short of the antenna keepout
@@ -65,7 +64,7 @@ VENTS = {"U1": (5, 12.0), "U6": (3, 8.0)}  # slots per group, slot length
 
 INNER_X0, INNER_X1 = -BOARD_GAP, PCB_LENGTH + BOARD_GAP
 INNER_Y0, INNER_Y1 = -BOARD_GAP, PCB_WIDTH + BOARD_GAP
-OUTER_X0 = PLUG_TIP_X + PLUG_EXPOSED_LENGTH
+OUTER_X0 = USBC_MOUTH_X            # receptacle mouth flush with the front face, so any cable fits
 OUTER_X1 = INNER_X1 + WALL
 OUTER_Y0, OUTER_Y1 = INNER_Y0 - WALL, INNER_Y1 + WALL
 OUTER_Z0, OUTER_Z1 = FLOOR_Z - FLOOR, CEILING_Z + LID
@@ -114,9 +113,9 @@ def build_tray():
     tray = rounded_box(OUTER_X0, OUTER_X1, OUTER_Y0, OUTER_Y1, OUTER_Z0, CEILING_Z, OUTER_CORNER_RADIUS)
     tray = tray.cut(rounded_box(INNER_X0, INNER_X1, INNER_Y0, INNER_Y1, FLOOR_Z, CEILING_Z,
                                 INNER_CORNER_RADIUS))
-    half_slot = PLUG_WIDTH / 2 + PLUG_SLOT_GAP
-    tray = tray.cut(box(OUTER_X0 - 1, 0, PLUG_Y - half_slot, PLUG_Y + half_slot,
-                        PLUG_TOP_Z - PLUG_HEIGHT - PLUG_SLOT_GAP, CEILING_Z))
+    half_slot = USBC_WIDTH / 2 + CONNECTOR_SLOT_GAP
+    tray = tray.cut(box(OUTER_X0 - 1, 0, USBC_Y - half_slot, USBC_Y + half_slot,
+                        PCB_THICKNESS - CONNECTOR_SLOT_GAP, CEILING_Z))
     for x, y in MOUNT_HOLES:
         tray = tray.fuse(cylinder_z(x, y, BOSS_RADIUS, FLOOR_Z, 0))
         tray = tray.cut(cylinder_z(x, y, SOCKET_RADIUS, FLOOR_Z, 0))
@@ -153,50 +152,49 @@ def build_lid():
 
 
 def build_board():
-    """PCB with every component as a datasheet-height block, plus the USB plug."""
+    """PCB with every component as a datasheet-height block, plus the USB-C receptacle."""
     pcb = rounded_box(0, PCB_LENGTH, 0, PCB_WIDTH, 0, PCB_THICKNESS, PCB_CORNER_RADIUS)
     for x, y in MOUNT_HOLES:
         pcb = pcb.cut(cylinder_z(x, y, MOUNT_HOLE_DIAMETER / 2, -1, 3))
     top = PCB_THICKNESS
     parts = [box(c["x0"], c["x1"], c["y0"], c["y1"], top, top + c["height"]) for c in BOARD["components"]]
-    half = PLUG_WIDTH / 2
-    plug = box(PLUG_TIP_X, PLUG_REAR_X, PLUG_Y - half, PLUG_Y + half, PLUG_TOP_Z - PLUG_HEIGHT, PLUG_TOP_Z)
-    plug = plug.cut(box(0, 10, 0, PCB_WIDTH, -1, top))
-    plug = plug.cut(box(PLUG_TIP_X - 1, PLUG_TIP_X + 8, PLUG_Y - half + 0.3, PLUG_Y + half - 0.3,
-                        PLUG_TOP_Z - PLUG_HEIGHT + 0.3, PLUG_TOP_Z - 2.2))  # contact cavity
-    parts.append(plug)
-    for tab_y in (PLUG_Y - 5.7, PLUG_Y + 5.7):  # shield tabs through the board
-        parts.append(box(2.1, 4.1, tab_y - 0.15, tab_y + 0.15, -PLUG_POST_DEPTH, 0))
-    for post_y in (PLUG_Y - 2.3, PLUG_Y + 2.3):  # plastic locating posts
-        parts.append(cylinder_z(3.1, post_y, 0.5, -PLUG_POST_DEPTH, 0))
+    half = USBC_WIDTH / 2
+    shell = box(USBC_MOUTH_X, USBC_MOUTH_X + USBC_LENGTH, USBC_Y - half, USBC_Y + half, top, USBC_TOP_Z)
+    tip_w, tip_h, tip_len = CABLE_TIP
+    axis_z = top + USBC_HEIGHT / 2
+    shell = shell.cut(box(USBC_MOUTH_X - 1, USBC_MOUTH_X + tip_len + 0.2, USBC_Y - tip_w / 2 - 0.05,
+                          USBC_Y + tip_w / 2 + 0.05, axis_z - tip_h / 2 - 0.08, axis_z + tip_h / 2 + 0.08))
+    parts.append(shell)
+    for offset in USBC_LEG_OFFSETS:
+        for side in (-1, 1):
+            parts.append(box(USBC_X + offset - 0.5, USBC_X + offset + 0.5, USBC_Y + side * 4.32 - 0.15,
+                             USBC_Y + side * 4.32 + 0.15, -USBC_LEG_DEPTH, top))
     return pcb, Part.makeCompound(parts)
 
 
-def build_receptacle():
-    """A mating USB-A socket pushed fully onto the plug."""
-    mouth_x = PLUG_TIP_X + RECEPTACLE_DEPTH
-    body_w, body_h = RECEPTACLE_BODY
-    open_w, open_h = RECEPTACLE_OPENING
-    plug_z = PLUG_TOP_Z - PLUG_HEIGHT / 2
-    body = box(mouth_x - 30, mouth_x, PLUG_Y - body_w / 2, PLUG_Y + body_w / 2,
-               plug_z - body_h / 2, plug_z + body_h / 2)
-    return body.cut(box(PLUG_TIP_X - 0.3, mouth_x + 1, PLUG_Y - open_w / 2, PLUG_Y + open_w / 2,
-                        plug_z - open_h / 2, plug_z + open_h / 2))
+def build_cable_plug():
+    """A USB-C cable plug with the largest overmold the spec allows, fully inserted."""
+    body_w, body_h = CABLE_OVERMOLD
+    tip_w, tip_h, tip_len = CABLE_TIP
+    axis_z = PCB_THICKNESS + USBC_HEIGHT / 2
+    body = box(USBC_MOUTH_X - 22, USBC_MOUTH_X, USBC_Y - body_w / 2, USBC_Y + body_w / 2,
+               axis_z - body_h / 2, axis_z + body_h / 2)
+    return body.fuse(box(USBC_MOUTH_X, USBC_MOUTH_X + tip_len, USBC_Y - tip_w / 2, USBC_Y + tip_w / 2,
+                         axis_z - tip_h / 2, axis_z + tip_h / 2))
 
 
-def report_fit(tray, lid, pcb, parts, receptacle):
+def report_fit(tray, lid, pcb, parts, cable):
     case = tray.fuse(lid)
     board = pcb.fuse(parts)
-    print("interference mm3: tray/board %.3f  lid/board %.3f  tray/lid %.3f  socket/case %.3f  socket/board %.3f"
+    print("interference mm3: tray/board %.3f  lid/board %.3f  tray/lid %.3f  cable/case %.3f  cable/board %.3f"
           % (tray.common(board).Volume, lid.common(board).Volume, tray.common(lid).Volume,
-             receptacle.common(case).Volume, receptacle.common(board).Volume))
+             cable.common(case).Volume, cable.common(board).Volume))
     tallest = max(c["height"] for c in BOARD["components"])
-    print("clearance mm: lid to components %.2f  tray walls to PCB edge %.2f  ceiling above tallest part %.2f"
-          % (lid.distToShape(Part.makeCompound([s for s in parts.Solids if s.BoundBox.ZMin >= PCB_THICKNESS - 1e-6
-                                                and s.BoundBox.XMin > PLUG_REAR_X]))[0],
-             BOARD_GAP, CEILING_Z - PCB_THICKNESS - tallest))
-    print("usb mm: plug exposed %.2f (standard 12.0)  socket mouth to case front %.2f  case front %.1f x %.1f"
-          % (OUTER_X0 - PLUG_TIP_X, OUTER_X0 - (PLUG_TIP_X + RECEPTACLE_DEPTH),
+    on_top = [s for s in parts.Solids if s.BoundBox.ZMin >= PCB_THICKNESS - 1e-6]
+    print("clearance mm: lid to parts %.2f  tray walls to PCB edge %.2f  ceiling above tallest chip %.2f"
+          % (lid.distToShape(Part.makeCompound(on_top))[0], BOARD_GAP, CEILING_Z - PCB_THICKNESS - tallest))
+    print("usb-c mm: receptacle mouth to case front %.2f (flush)  front wall %.2f  cable overmold %.1f x %.1f on a %.1f x %.1f front"
+          % (USBC_MOUTH_X - OUTER_X0, INNER_X0 - OUTER_X0, CABLE_OVERMOLD[0], CABLE_OVERMOLD[1],
              OUTER_Y1 - OUTER_Y0, OUTER_Z1 - OUTER_Z0))
 
 
@@ -204,7 +202,7 @@ def main():
     doc = App.newDocument("f133_dongle_case")
     pcb, parts = build_board()
     shapes = {"Tray": build_tray(), "Lid": build_lid(), "Pcb": pcb, "Components": parts,
-              "UsbSocket": build_receptacle()}
+              "UsbCable": build_cable_plug()}
     for name, shape in shapes.items():
         doc.addObject("Part::Feature", name).Shape = shape
         bounds = shape.BoundBox
@@ -212,7 +210,7 @@ def main():
               % (name, shape.isValid(), len(shape.Solids), shape.Volume,
                  bounds.XLength, bounds.YLength, bounds.ZLength))
     doc.recompute()
-    report_fit(shapes["Tray"], shapes["Lid"], pcb, parts, shapes["UsbSocket"])
+    report_fit(shapes["Tray"], shapes["Lid"], pcb, parts, shapes["UsbCable"])
     doc.saveAs(os.path.join(OUT_DIR, "f133-dongle-case.FCStd"))
     for name, filename in (("Tray", "f133-dongle-case-tray"), ("Lid", "f133-dongle-case-lid")):
         shapes[name].exportStep(os.path.join(OUT_DIR, filename + ".step"))

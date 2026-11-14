@@ -37,24 +37,6 @@
 	)
 	(attr smd)
 	(duplicate_pad_numbers_are_jumpers no)
-	(fp_line
-		(start -0.261252 -1.11)
-		(end 0.261252 -1.11)
-		(stroke
-			(width 0.12)
-			(type solid)
-		)
-		(layer "F.SilkS")
-	)
-	(fp_line
-		(start -0.261252 1.11)
-		(end 0.261252 1.11)
-		(stroke
-			(width 0.12)
-			(type solid)
-		)
-		(layer "F.SilkS")
-	)
 	(fp_rect
 		(start -1.95 -1.35)
 		(end 1.95 1.35)

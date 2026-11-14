@@ -12,6 +12,8 @@ X0, Y0, X1, Y1 = 100.0, 100.0, 180.5, 124.0
 NX, NY = int(round((X1 - X0) / G)) + 1, int(round((Y1 - Y0) / G)) + 1
 CAP = 1.2
 CLEAR = 0.127
+PAD_GAP = 0.1
+HOLE_EXTRA = 0.08  # unplated holes need 0.2 mm, not CLEAR
 MARGIN = 0.04
 EDGE = 0.45
 KEEPOUT_X = 174.5
@@ -74,6 +76,8 @@ def distance_fields(board, netname):
             cx, cy = mm(bb.GetCenter().x), mm(bb.GetCenter().y)
             hw, hh = mm(bb.GetWidth()) / 2, mm(bb.GetHeight()) / 2
             through = pad.GetDrillSize().x > 0
+            if pad.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH:
+                hw, hh = hw + HOLE_EXTRA, hh + HOLE_EXTRA
             for i, layer in enumerate(LAYERS):
                 if through or pad.IsOnLayer(layer):
                     _rect(fields[i], cx, cy, hw, hh)
@@ -106,6 +110,17 @@ def via_ok(fields, via_radius):
     for f in fields:
         ok &= f >= via_radius + CLEAR + MARGIN
     return ok
+
+
+def off_pads(board, via_radius):
+    """Cells where a via would not sit on any SMD pad (a via in a pad wicks solder away)."""
+    field = np.full((NY, NX), CAP, np.float32)
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            if pad.GetDrillSize().x == 0:
+                bb = pad.GetBoundingBox()
+                _rect(field, mm(bb.GetCenter().x), mm(bb.GetCenter().y), mm(bb.GetWidth()) / 2, mm(bb.GetHeight()) / 2)
+    return field >= via_radius + PAD_GAP
 
 
 MOVES = [(1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),

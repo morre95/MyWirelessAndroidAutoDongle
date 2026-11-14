@@ -26,7 +26,7 @@ for netname, start, target, width, via_d in JOBS:
         start_xy = tuple(start)
     fields = rt.distance_fields(board, netname)
     ok = [rt.track_ok(fields, 0, width / 2), rt.track_ok(fields, 3, width / 2)]
-    vok = rt.via_ok(fields, via_d / 2)
+    vok = rt.via_ok(fields, via_d / 2) & rt.off_pads(board, via_d / 2)
     sx, sy = rt.cell(*start_xy)
     ok[0][sy, sx] = True
     goal = end_xy = None

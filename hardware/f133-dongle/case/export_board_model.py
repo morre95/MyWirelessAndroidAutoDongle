@@ -4,7 +4,7 @@ Run with:  python3 export_board_model.py   (needs KiCad's pcbnew module)
 Writes board.json next to this script; build_case.py reads it.
 
 Coordinates are converted to the case frame (mm): x = KiCad x - board left,
-y = board bottom - KiCad y, so the USB plug points towards -x and y is up.
+y = board bottom - KiCad y, so the USB-C receptacle opens towards -x and y is up.
 """
 import json
 import os
@@ -69,8 +69,9 @@ def main():
             x1, y0 = local(mm(yard.GetRight()) - COURTYARD_MARGIN, mm(yard.GetBottom()) - COURTYARD_MARGIN)
             model["components"].append({"ref": ref, "x0": x0, "x1": x1, "y0": y0, "y1": y1,
                                         "height": BODY_HEIGHT[name]})
-    plug = board.FindFootprintByReference("J1")
-    model["plug_center_y"] = local(0, mm(plug.GetPosition().y))[1]
+    connector = board.FindFootprintByReference("J1")
+    x, y = local(mm(connector.GetPosition().x), mm(connector.GetPosition().y))
+    model["usb_connector"] = {"x": x, "y": y}  # footprint origin = centre of the receptacle body
     antenna = board.FindFootprintByReference("AE1").GetCourtyard(pcbnew.F_CrtYd).BBox()
     model["antenna_x0"] = local(mm(antenna.GetLeft()), 0)[0]
     with open(os.path.join(HERE, "board.json"), "w") as out:
