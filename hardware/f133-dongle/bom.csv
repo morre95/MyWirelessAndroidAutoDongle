@@ -1,0 +1,28 @@
+Designator,Quantity,Value,Manufacturer,MPN,Description,Footprint,LCSC
+"C1, C2, C3, C4, C6, C8, C27",7,10uF,Samsung Electro Mechanics,CL10A106MA8NRNC,10uF 25V X5R ±20% 0603 Multilayer Ceramic Capacitors MLCC - SMD/SMT ROHS,C_0603_1608Metric,C96446
+"C5, C10, C11, C12, C13, C14, C15, C16, C17, C18, C19, C21, C22, C23, C24, C25, C28, C29, C30, C31, C38, C40, C41",23,100nF,Samsung Electro Mechanics,CL05B104KO5NNNC,100nF 16V X7R ±10% 0402 Multilayer Ceramic Capacitors MLCC - SMD/SMT ROHS,C_0402_1005Metric,C1525
+C7,1,22uF,Samsung Electro Mechanics,CL21A226MAQNNNE,22uF 25V X5R ±20% 0805 Multilayer Ceramic Capacitors MLCC - SMD/SMT ROHS,C_0805_2012Metric,C45783
+"C9, C20, C26, C32, C37",5,2.2uF,Samsung Electro Mechanics,CL05A225MQ5NSNC,2.2uF 6.3V X5R ±20% 0402 Multilayer Ceramic Capacitors MLCC - SMD/SMT ROHS,C_0402_1005Metric,C12530
+"C33, C34, C35, C36",4,18pF,FH Guangdong Fenghua Advanced Tech,0402CG180J500NT,18pF 50V C0G ±5% 0402 Multilayer Ceramic Capacitors MLCC - SMD/SMT ROHS,C_0402_1005Metric,C1549
+"C39, C42",2,4.7uF,Samsung Electro Mechanics,CL10A475KO8NNNC,16V 4.7uF X5R ±10% 0603 Multilayer Ceramic Capacitors MLCC - SMD/SMT ROHS,C_0603_1608Metric,C19666
+"C43, C44",2,12pF,FH Guangdong Fenghua Advanced Tech,0402CG120J500NT,12pF 50V C0G ±5% 0402 Multilayer Ceramic Capacitors MLCC - SMD/SMT ROHS,C_0402_1005Metric,C1547
+D1,1,LED,Hubei KENTO Elec,KT-0603R,-40℃~+85℃ 1.6mm x 0.8mm square LED 1.8V~2.4V 120° 20mA 300mcd 40mW 615nm~630nm 645nm Discrete Diode Red Water Clear 0603 LED Indication - Discrete ROHS,LED_0603_1608Metric,C2286
+J1,1,USB_C_Receptacle,Korean Hroparts Elec,TYPE-C-31-M-12,"-30℃~+80℃ 1 10,000 cycles 16P 20V 5A 7.35mm Female Surface Mount, Right Angle Type-C SMD USB Connectors ROHS",USB_C_Receptacle_HRO_TYPE-C-31-M-12,C165948
+"L1, L2",2,2.2uH,INPAQ,WIP252012P-2R2ML,2.06A 2.2uH 2.73A 85mΩ ±20% 1008 Power Inductors ROHS,L_1008_2520Metric,C964122
+L3,1,4.7uH,Murata Electronics,LQM21PN4R7MGRD,288mΩ 30MHz 4.7uH 800mA Multilayer inductor ±20% 0805 Inductors (SMD) ROHS,L_0805_2012Metric,C86090
+"R1, R4, R5, R7",4,100k,UNI ROYAL Uniroyal Elec,0402WGF1003TCE,-55℃~+155℃ 100kΩ 50V 62.5mW Thick Film Resistor ±1% ±100ppm/℃ 0402 Chip Resistor - Surface Mount ROHS,R_0402_1005Metric,C25741
+R2,1,22k,UNI ROYAL Uniroyal Elec,0402WGF2202TCE,-55℃~+155℃ 22kΩ 50V 62.5mW Thick Film Resistor ±1% ±100ppm/℃ 0402 Chip Resistor - Surface Mount ROHS,R_0402_1005Metric,C25768
+R3,1,51k,UNI ROYAL Uniroyal Elec,0402WGF5102TCE,-55℃~+155℃ 50V 51kΩ 62.5mW Thick Film Resistor ±1% ±100ppm/℃ 0402 Chip Resistor - Surface Mount ROHS,R_0402_1005Metric,C25794
+R8,1,22R,UNI ROYAL Uniroyal Elec,0402WGF220JTCE,-55℃~+155℃ 22Ω 50V 62.5mW Thick Film Resistor ±1% ±100ppm/℃ 0402 Chip Resistor - Surface Mount ROHS,R_0402_1005Metric,C25092
+"R9, R10, R11, R12, R13",5,10k,UNI ROYAL Uniroyal Elec,0402WGF1002TCE,-55℃~+155℃ 10kΩ 50V 62.5mW Thick Film Resistor ±1% ±100ppm/℃ 0402 Chip Resistor - Surface Mount ROHS,R_0402_1005Metric,C25744
+R14,1,0R,UNI ROYAL Uniroyal Elec,0402WGF0000TCE,-55℃~+155℃ 0Ω 50V 62.5mW Thick Film Resistor ±1% ±800ppm/℃ 0402 Chip Resistor - Surface Mount ROHS,R_0402_1005Metric,C17168
+R15,1,1k,UNI ROYAL Uniroyal Elec,0402WGF1001TCE,-55℃~+155℃ 1kΩ 50V 62.5mW Thick Film Resistor ±1% ±100ppm/℃ 0402 Chip Resistor - Surface Mount ROHS,R_0402_1005Metric,C11702
+"R16, R17",2,5.1k,UNI ROYAL Uniroyal Elec,0402WGF5101TCE,-55℃~+155℃ 5.1kΩ 50V 62.5mW Thick Film Resistor ±1% ±100ppm/℃ 0402 Chip Resistor - Surface Mount ROHS,R_0402_1005Metric,C25905
+U1,1,F133-B,Allwinner Tech,F133-B,ELQFP-128(14x14) Microcontrollers (MCU/MPU/SOC) ROHS,eLQFP-128_14x14mm_P0.4mm_EP5.72mm,C22438485
+"U2, U3",2,TLV62569DBV,Texas Instruments,TLV62569DBVR,-40℃~+125℃@(TJ) 1 1.5MHz 2.5V~5.5V 2A 600mV~5.5V Adjustable Buck Buck Built-in Yes SOT-23-5 DC-DC Converters ROHS,SOT-23-5,C141836
+U4,1,USBLC6-2SC6,STMicroelectronics,USBLC6-2SC6,-40℃~+125℃ 150nA 17V 2 3.5pF 5.25V 5A 6V ESD IEC 61000-4-2 Unidirectional SOT-23-6L ESD and Surge Protection (TVS/ESD) ROHS,SOT-23-6,C7519
+U5,1,MKDV2GCL-ABF,MK Founder,MKDV2GCL-ABF,-25℃~+85℃ 10 Years 2.7V~3.6V 2Gbit 50MHz SD interface LGA-8(6x8) NAND FLASH ROHS,LGA-8_8x6mm_P1.27mm_SD_NAND,C51966231
+U6,1,AP6212,AMPAK,AP6212,WiFi 802.11b/g/n + Bluetooth 4.0 SDIO module,AMPAK_AP62xx_12x12mm,
+Y1,1,24MHz,Yajingxin,TAXM24M4RFBCCT2T,-40℃~+85℃ 12pF 24MHz 30Ω Crystal Oscillator ±10ppm ±30ppm SMD3225-4P Crystals ROHS,Crystal_SMD_3225-4Pin_3.2x2.5mm,C164058
+Y2,1,32.768kHz,Seiko Epson,Q13FC13500004,-40℃~+85℃ 12.5pF 32.768kHz 70kΩ Crystal Oscillator ±20ppm SMD3215-2P Crystals ROHS,Crystal_SMD_3215-2Pin_3.2x1.5mm,C32346
+Y3,1,26MHz,YXC Crystal Oscillators,X322526MMB4SI,-40℃~+85℃ 10pF 26MHz 50Ω Crystal Oscillator ±10ppm ±20ppm SMD3225-4P Crystals ROHS,Crystal_SMD_3225-4Pin_3.2x2.5mm,C15192
