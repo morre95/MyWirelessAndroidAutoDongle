@@ -1,7 +1,7 @@
 Designator,Quantity,Value,Manufacturer,MPN,Description,Footprint,LCSC
 "C1, C2, C3, C4, C6, C8, C27",7,10uF,Samsung Electro Mechanics,CL10A106MA8NRNC,10uF 25V X5R ±20% 0603 Multilayer Ceramic Capacitors MLCC - SMD/SMT ROHS,C_0603_1608Metric,C96446
 "C5, C10, C11, C12, C13, C14, C15, C16, C17, C18, C19, C21, C22, C23, C24, C25, C28, C29, C30, C31, C38, C40, C41",23,100nF,Samsung Electro Mechanics,CL05B104KO5NNNC,100nF 16V X7R ±10% 0402 Multilayer Ceramic Capacitors MLCC - SMD/SMT ROHS,C_0402_1005Metric,C1525
-C7,1,22uF,Samsung Electro Mechanics,CL21A226MAQNNNE,22uF 25V X5R ±20% 0805 Multilayer Ceramic Capacitors MLCC - SMD/SMT ROHS,C_0805_2012Metric,C45783
+C7,1,22uF,YAGEO,CC0805MKX5R8BB226,22uF 25V X5R ±20% 0805 Multilayer Ceramic Capacitors MLCC - SMD/SMT ROHS,C_0805_2012Metric,C784585
 "C9, C20, C26, C32, C37",5,2.2uF,Samsung Electro Mechanics,CL05A225MQ5NSNC,2.2uF 6.3V X5R ±20% 0402 Multilayer Ceramic Capacitors MLCC - SMD/SMT ROHS,C_0402_1005Metric,C12530
 "C33, C34, C35, C36",4,18pF,FH Guangdong Fenghua Advanced Tech,0402CG180J500NT,18pF 50V C0G ±5% 0402 Multilayer Ceramic Capacitors MLCC - SMD/SMT ROHS,C_0402_1005Metric,C1549
 "C39, C42",2,4.7uF,Samsung Electro Mechanics,CL10A475KO8NNNC,16V 4.7uF X5R ±10% 0603 Multilayer Ceramic Capacitors MLCC - SMD/SMT ROHS,C_0603_1608Metric,C19666
